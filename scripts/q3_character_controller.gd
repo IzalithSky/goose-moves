@@ -1,6 +1,7 @@
 class_name Q3CharacterController
 extends CharacterBody3D
 
+const Q3_MOVEMENT_HUD := preload("res://scripts/q3_movement_hud.gd")
 const Q3_UNITS_PER_FOOT := 8.0
 const METERS_PER_FOOT := 0.3048
 const Q3_METERS_PER_UNIT := METERS_PER_FOOT / Q3_UNITS_PER_FOOT
@@ -9,6 +10,8 @@ const Q3_GRAVITY := 800.0
 const Q3_JUMP_VELOCITY := 270.0
 const Q3_STOP_SPEED := 100.0
 const Q3_STEP_HEIGHT := 18.0
+const Q3_GROUND_TRACE_DISTANCE := 0.25 * Q3_METERS_PER_UNIT
+const Q3_GROUND_KICKOFF_SPEED := 10.0 * Q3_METERS_PER_UNIT
 const Q3_MAX_SLOPE_ANGLE := 45.572996
 const Q3_RUN_COMMAND := 127.0
 const Q3_WALK_COMMAND := 64.0
@@ -25,6 +28,7 @@ const Q3_CROUCH_EYE_HEIGHT := Q3_CROUCH_VIEWHEIGHT - Q3_MINS_Z
 const Q3_SWIM_SCALE := 0.5
 const Q3_WATER_ACCELERATION := 4.0
 const Q3_WATER_FRICTION := 1.0
+const Q3_SLIME_FRICTION := 12.0
 const Q3_WATER_SINK_SPEED := 60.0
 const Q3_VOLUME_COLLISION_MASK := 2
 const Q3_WATER_JUMP_FORWARD_DISTANCE := 30.0 * Q3_METERS_PER_UNIT
@@ -53,12 +57,15 @@ const Q3_WATER_JUMP_DURATION := 2.0
 @export var swim_speed_scale := Q3_SWIM_SCALE
 @export var water_acceleration := Q3_WATER_ACCELERATION
 @export var water_friction := Q3_WATER_FRICTION
+@export var slime_friction := Q3_SLIME_FRICTION
 
 @export_category("View")
 @export var mouse_sensitivity := 0.003
 
 @onready var head: Node3D = $Head
+@onready var camera: Camera3D = $Head/Camera3D
 @onready var collision_shape: CollisionShape3D = $CollisionShape3D
+@onready var hud: Q3_MOVEMENT_HUD = $HUD
 
 var pitch := 0.0
 var yaw := 0.0
@@ -80,8 +87,25 @@ func _ready() -> void:
 	pitch = head.rotation.x
 	yaw = rotation.y
 	mouse_sensitivity = Settings.mouse_sensitivity
+	camera.fov = Settings.fov
 	Settings.settings_changed.connect(on_settings_changed)
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+
+func _process(_delta: float) -> void:
+	var horizontal_speed_mps := Vector2(velocity.x, velocity.z).length()
+	hud.update_values(
+		horizontal_speed_mps / Q3_METERS_PER_UNIT,
+		horizontal_speed_mps,
+		roundi(Engine.get_frames_per_second()),
+		is_on_floor(),
+		floor_is_slick,
+		is_crouching,
+		water_level,
+		water_jump_time_remaining > 0.0,
+		_get_current_friction_coefficient(),
+		_get_current_acceleration(),
+	)
 
 
 func _physics_process(delta: float) -> void:
@@ -89,10 +113,20 @@ func _physics_process(delta: float) -> void:
 	_update_water_level()
 	var grounded := is_on_floor()
 	var floor_normal := get_floor_normal() if grounded else Vector3.UP
+	if not grounded:
+		var ground_collision := _get_ground_collision()
+		if ground_collision != null:
+			var traced_normal := ground_collision.get_normal()
+			var kicked_off := (
+				velocity.y > 0.0
+				and velocity.dot(traced_normal) > Q3_GROUND_KICKOFF_SPEED
+			)
+			if traced_normal.y >= cos(floor_max_angle) and not kicked_off:
+				grounded = true
+				floor_normal = traced_normal
+				apply_floor_snap()
 	var slick := grounded and floor_is_slick
 	var movement_input := _get_movement_input()
-	var wish_direction := _get_wish_direction(movement_input, floor_normal if grounded else Vector3.UP)
-	var wish_speed := _get_wish_speed(movement_input)
 	if water_jump_time_remaining > 0.0:
 		_water_jump_move(delta)
 		return
@@ -102,30 +136,41 @@ func _physics_process(delta: float) -> void:
 			return
 		_water_move(movement_input, delta)
 		return
-	if water_level > 0:
-		var wade_scale := 1.0 - ((1.0 - swim_speed_scale) * (water_level / 3.0))
-		wish_speed = minf(wish_speed, move_speed * wade_scale)
-	if grounded and is_crouching:
-		wish_speed = minf(wish_speed, move_speed * crouch_speed_scale)
-	_apply_friction(delta, grounded and not slick)
+	if grounded and Input.is_action_just_pressed("player_jump") and not Input.is_action_pressed("player_crouch"):
+		velocity.y = jump_velocity
+		grounded = false
 
-	if grounded and not slick:
-		_accelerate(wish_direction, wish_speed, ground_acceleration, delta)
-		if Input.is_action_just_pressed("player_jump") and not Input.is_action_pressed("player_crouch"):
-			velocity.y = jump_velocity
-			grounded = false
-		else:
-			_project_velocity_onto_plane(floor_normal)
+	var wish_direction := _get_wish_direction(movement_input, floor_normal if grounded else Vector3.UP)
+	var wish_speed := _get_wish_speed(movement_input)
+	if grounded:
+		if water_level > 0:
+			var wade_scale := 1.0 - ((1.0 - swim_speed_scale) * (water_level / 3.0))
+			wish_speed = minf(wish_speed, move_speed * wade_scale)
+		if is_crouching:
+			wish_speed = minf(wish_speed, move_speed * crouch_speed_scale)
+
+	_apply_friction(delta, grounded and not slick)
+	var airborne_end_velocity_y := 0.0
+	if grounded:
+		_accelerate(wish_direction, wish_speed, air_acceleration if slick else ground_acceleration, delta)
+		if slick:
+			if not floor_normal.is_equal_approx(Vector3.UP):
+				velocity.y -= gravity * delta
+		_project_velocity_onto_plane(floor_normal)
 	else:
 		_accelerate(wish_direction, wish_speed, air_acceleration, delta)
-		velocity.y -= gravity * delta
+		airborne_end_velocity_y = velocity.y - (gravity * delta)
+		velocity.y = (velocity.y + airborne_end_velocity_y) * 0.5
 
 	if grounded:
 		_try_step_up(delta)
 
 	move_and_slide()
-	if velocity.y <= 0.0:
-		apply_floor_snap()
+	if is_on_floor():
+		if grounded:
+			_restore_velocity_on_floor_plane(get_floor_normal())
+	elif not grounded:
+		velocity.y = airborne_end_velocity_y
 	_update_floor_surface()
 
 
@@ -305,6 +350,30 @@ func _get_swim_wish_velocity(movement_input: Vector2) -> Vector3:
 	return ((forward * forward_move) + (right * right_move) + (Vector3.UP * vertical_input)) * command_scale
 
 
+func _get_current_friction_coefficient() -> float:
+	if water_jump_time_remaining > 0.0:
+		return 0.0
+
+	var current_friction := _get_volume_friction() * water_level
+	if water_level <= 1 and is_on_floor() and not floor_is_slick:
+		current_friction += friction
+	return current_friction
+
+
+func _get_current_acceleration() -> float:
+	if water_jump_time_remaining > 0.0:
+		return 0.0
+	if water_level > 1:
+		return water_acceleration
+	if is_on_floor() and not floor_is_slick:
+		return ground_acceleration
+	return air_acceleration
+
+
+func _get_volume_friction() -> float:
+	return slime_friction if water_type == &"slime" else water_friction
+
+
 func _apply_friction(delta: float, apply_ground_friction: bool) -> void:
 	var friction_velocity := velocity
 	if apply_ground_friction:
@@ -317,7 +386,7 @@ func _apply_friction(delta: float, apply_ground_friction: bool) -> void:
 	if apply_ground_friction:
 		drop += maxf(speed, stop_speed) * friction * delta
 	if water_level > 0:
-		drop += speed * water_friction * water_level * delta
+		drop += speed * _get_volume_friction() * water_level * delta
 	if drop <= 0.0:
 		return
 
@@ -338,11 +407,31 @@ func _accelerate(wish_direction: Vector3, wish_speed: float, acceleration: float
 	velocity += wish_direction * acceleration_speed
 
 
-func _project_velocity_onto_plane(plane_normal: Vector3) -> void:
-	var speed := velocity.length()
+func _project_velocity_onto_plane(plane_normal: Vector3, speed: float = -1.0) -> void:
+	if speed < 0.0:
+		speed = velocity.length()
 	velocity = velocity.slide(plane_normal)
 	if not velocity.is_zero_approx():
 		velocity = velocity.normalized() * speed
+
+
+func _restore_velocity_on_floor_plane(plane_normal: Vector3) -> void:
+	if is_zero_approx(plane_normal.y):
+		return
+	velocity.y = -((velocity.x * plane_normal.x) + (velocity.z * plane_normal.z)) / plane_normal.y
+
+
+func _get_ground_collision() -> KinematicCollision3D:
+	var collision := KinematicCollision3D.new()
+	if test_move(
+		global_transform,
+		Vector3.DOWN * Q3_GROUND_TRACE_DISTANCE,
+		collision,
+		safe_margin,
+		false,
+	):
+		return collision
+	return null
 
 
 func _try_step_up(delta: float) -> bool:
@@ -373,15 +462,24 @@ func _update_floor_surface() -> void:
 	floor_is_slick = false
 	for collision_index in get_slide_collision_count():
 		var collision := get_slide_collision(collision_index)
-		if collision.get_normal().y < cos(floor_max_angle):
-			continue
-		var collider := collision.get_collider()
-		if collider is Node and (
-			(collider.has_meta("q3_surface") and collider.get_meta("q3_surface") == &"slick")
-			or (collider.has_meta("slick") and bool(collider.get_meta("slick")))
-		):
-			floor_is_slick = true
+		if collision.get_normal().y >= cos(floor_max_angle):
+			floor_is_slick = _surface_is_slick(collision.get_collider() as Node)
 			return
+
+	var ground_collision := _get_ground_collision()
+	if ground_collision != null and ground_collision.get_normal().y >= cos(floor_max_angle):
+		floor_is_slick = _surface_is_slick(ground_collision.get_collider() as Node)
+
+
+func _surface_is_slick(collider: Node) -> bool:
+	while collider != null:
+		if (
+			StringName(collider.get_meta("q3_surface", &"")) == &"slick"
+			or bool(collider.get_meta("slick", false))
+		):
+			return true
+		collider = collider.get_parent()
+	return false
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -394,3 +492,4 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func on_settings_changed() -> void:
 	mouse_sensitivity = Settings.mouse_sensitivity
+	camera.fov = Settings.fov

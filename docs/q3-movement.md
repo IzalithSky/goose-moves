@@ -59,7 +59,7 @@ v += accelspeed · wishdir
 
 ## Slopes & stairs
 
-**Walkable test** (`PM_GroundTrace`, `bg_pmove.c:1107`) — a 0.25 u down-probe each tick. Walkable only if `normal.z ≥ MIN_WALK_NORMAL (0.7 ≈ 45°)`; steeper → `groundPlane = true` but `walking = false`, so it runs the **air path and slides down** under gravity. A "kickoff" case (moving up *and* away from the plane, `dot(vel,normal) > 10`) also drops grounding — this is what lets you leave a ramp.
+**Walkable test** (`PM_GroundTrace`, `bg_pmove.c:1107`) — a full-hull 0.25 u down-probe each tick (0.009525 m at this project's scale). Walkable only if `normal.z ≥ MIN_WALK_NORMAL (0.7 ≈ 45°)`; steeper → `groundPlane = true` but `walking = false`, so it runs the **air path and slides down** under gravity. A "kickoff" case (moving up *and* away from the plane, `dot(vel,normal) > 10`) also drops grounding — this is what lets you leave a ramp.
 
 **Walking a slope** (`PM_WalkMove`) — the forward/right input basis is clipped onto the ground plane so movement follows the surface; after accel, velocity is clipped to the plane then **rescaled to its pre-clip magnitude**. Slopes redirect velocity but cost **no speed**.
 

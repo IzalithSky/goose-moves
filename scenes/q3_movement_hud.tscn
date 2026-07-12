@@ -1,0 +1,263 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/q3_movement_hud.gd" id="1_hud"]
+
+[node name="Q3MovementHUD" type="CanvasLayer"]
+layer = 1
+script = ExtResource("1_hud")
+
+[node name="BottomBar" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="MetricsStack" type="VBoxContainer" parent="BottomBar"]
+layout_mode = 1
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = -112.0
+offset_right = 226.0
+offset_bottom = -16.0
+grow_vertical = 0
+theme_override_constants/separation = 4
+
+[node name="FpsLabel" type="Label" parent="BottomBar/MetricsStack"]
+custom_minimum_size = Vector2(0, 28)
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 17
+text = "FPS  0"
+vertical_alignment = 1
+
+[node name="FrictionLabel" type="Label" parent="BottomBar/MetricsStack"]
+custom_minimum_size = Vector2(0, 28)
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 17
+text = "FRICTION  0.0"
+vertical_alignment = 1
+
+[node name="AccelerationLabel" type="Label" parent="BottomBar/MetricsStack"]
+custom_minimum_size = Vector2(0, 28)
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 17
+text = "ACCEL  0.0"
+vertical_alignment = 1
+
+[node name="SpeedTitleLabel" type="Label" parent="BottomBar"]
+layout_mode = 1
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -120.0
+offset_top = -108.0
+offset_right = 120.0
+offset_bottom = -84.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 16
+text = "SPEED"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SpeedQ3NumberLabel" type="Label" parent="BottomBar"]
+layout_mode = 1
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -104.0
+offset_top = -84.0
+offset_right = 4.0
+offset_bottom = -52.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 20
+text = "0.0"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="SpeedQ3UnitLabel" type="Label" parent="BottomBar"]
+layout_mode = 1
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = -84.0
+offset_right = 92.0
+offset_bottom = -52.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 16
+text = "u/s"
+vertical_alignment = 1
+
+[node name="SpeedMpsNumberLabel" type="Label" parent="BottomBar"]
+layout_mode = 1
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -104.0
+offset_top = -52.0
+offset_right = 4.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 20
+text = "0.0"
+horizontal_alignment = 2
+vertical_alignment = 1
+
+[node name="SpeedMpsUnitLabel" type="Label" parent="BottomBar"]
+layout_mode = 1
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = -52.0
+offset_right = 92.0
+offset_bottom = -20.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 16
+text = "m/s"
+vertical_alignment = 1
+
+[node name="FlagGrid" type="GridContainer" parent="BottomBar"]
+layout_mode = 1
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -210.0
+offset_top = -178.0
+offset_right = -16.0
+offset_bottom = -20.0
+grow_horizontal = 0
+grow_vertical = 0
+columns = 2
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 4
+
+[node name="GroundSignLabel" type="Label" parent="BottomBar/FlagGrid"]
+custom_minimum_size = Vector2(18, 26)
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 16
+text = "-"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="GroundNameLabel" type="Label" parent="BottomBar/FlagGrid"]
+custom_minimum_size = Vector2(0, 26)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 16
+text = "GROUND"
+vertical_alignment = 1
+
+[node name="SlickSignLabel" type="Label" parent="BottomBar/FlagGrid"]
+custom_minimum_size = Vector2(18, 26)
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 16
+text = "-"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SlickNameLabel" type="Label" parent="BottomBar/FlagGrid"]
+custom_minimum_size = Vector2(0, 26)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 16
+text = "SLICK"
+vertical_alignment = 1
+
+[node name="CrouchSignLabel" type="Label" parent="BottomBar/FlagGrid"]
+custom_minimum_size = Vector2(18, 26)
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 16
+text = "-"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="CrouchNameLabel" type="Label" parent="BottomBar/FlagGrid"]
+custom_minimum_size = Vector2(0, 26)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 16
+text = "CROUCH"
+vertical_alignment = 1
+
+[node name="WaterSignLabel" type="Label" parent="BottomBar/FlagGrid"]
+custom_minimum_size = Vector2(18, 26)
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 16
+text = "-"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="WaterNameLabel" type="Label" parent="BottomBar/FlagGrid"]
+custom_minimum_size = Vector2(0, 26)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 16
+text = "WATER"
+vertical_alignment = 1
+
+[node name="WaterJumpSignLabel" type="Label" parent="BottomBar/FlagGrid"]
+custom_minimum_size = Vector2(18, 26)
+layout_mode = 2
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 16
+text = "-"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="WaterJumpNameLabel" type="Label" parent="BottomBar/FlagGrid"]
+custom_minimum_size = Vector2(0, 26)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 16
+text = "WATERJUMP"
+vertical_alignment = 1

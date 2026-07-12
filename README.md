@@ -6,7 +6,10 @@ Development is AI-assisted.
 
 ## Layout
 
-- `docs/` — movement research notes (source-verified where possible)
+- `docs/` — movement research notes (source-verified where possible) and the testing strategy
 - `scripts/` — GDScript
 - `scenes/` — Godot scenes
+- `tests/` — headless regression tests; run with `tests/run.sh` (see `docs/testing.md`)
 - `references/` — cloned upstream open-source engines/decompilations used for research; gitignored and Godot-ignored; for reading only, not part of the build
+
+Project directories are kept flat — no subdirectories inside `docs/`, `scripts/`, `scenes/`, or `tests/`.

@@ -11,7 +11,7 @@ grow_vertical = 2
 script = ExtResource("1_keybindings")
 
 [node name="Panel" type="PanelContainer" parent="."]
-custom_minimum_size = Vector2(560, 0)
+custom_minimum_size = Vector2(720, 0)
 layout_mode = 2
 
 [node name="Margin" type="MarginContainer" parent="Panel"]
@@ -33,7 +33,7 @@ horizontal_alignment = 1
 
 [node name="Hint" type="Label" parent="Panel/Margin/VBox"]
 layout_mode = 2
-text = "Select a binding, then press its new key. Escape cancels a change."
+text = "Select either binding slot, then press a key or mouse button. Escape cancels a change."
 autowrap_mode = 2
 
 [node name="ScrollContainer" type="ScrollContainer" parent="Panel/Margin/VBox"]
@@ -44,7 +44,7 @@ size_flags_vertical = 3
 [node name="ActionGrid" type="GridContainer" parent="Panel/Margin/VBox/ScrollContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
-columns = 2
+columns = 4
 theme_override_constants/h_separation = 16
 theme_override_constants/v_separation = 8
 

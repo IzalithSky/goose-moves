@@ -1,8 +1,8 @@
 [gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/pause_menu.gd" id="1_pause"]
-[ext_resource type="PackedScene" path="res://scenes/menus/settings_menu.tscn" id="2_settings"]
-[ext_resource type="PackedScene" path="res://scenes/menus/keybindings_menu.tscn" id="3_keybindings"]
+[ext_resource type="PackedScene" path="res://scenes/settings_menu.tscn" id="2_settings"]
+[ext_resource type="PackedScene" path="res://scenes/keybindings_menu.tscn" id="3_keybindings"]
 
 [node name="PauseMenu" type="CanvasLayer"]
 layer = 5

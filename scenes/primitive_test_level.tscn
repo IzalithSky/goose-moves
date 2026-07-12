@@ -96,7 +96,7 @@ emission = Color(0.55, 0.055, 0.005, 1)
 roughness = 0.3
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_pool_volume"]
-size = Vector3(14, 3, 14)
+size = Vector3(14, 9, 14)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_shallow_volume"]
 size = Vector3(14, 0.08, 14)
@@ -255,51 +255,16 @@ material = SubResource("StandardMaterial_coral")
 [node name="SurfaceFlags" type="Node3D" parent="."]
 
 [node name="SlickIce" type="CSGBox3D" parent="SurfaceFlags"]
-position = Vector3(-42, 0.03, 32)
+position = Vector3(-42, 0.03, 20)
 use_collision = true
-size = Vector3(10, 0.06, 10)
+size = Vector3(10, 0.06, 60)
 material = SubResource("StandardMaterial_ice")
 metadata/q3_surface = "slick"
-
-[node name="NoDamage" type="CSGBox3D" parent="SurfaceFlags"]
-position = Vector3(-30, 0.1, 32)
-use_collision = true
-size = Vector3(10, 0.2, 10)
-material = SubResource("StandardMaterial_teal")
-metadata/q3_surface = "no_damage"
-
-[node name="MetalSteps" type="CSGBox3D" parent="SurfaceFlags"]
-position = Vector3(-18, 0.1, 32)
-use_collision = true
-size = Vector3(10, 0.2, 10)
-material = SubResource("StandardMaterial_blue")
-metadata/q3_surface = "metal_steps"
-
-[node name="NoSteps" type="CSGBox3D" parent="SurfaceFlags"]
-position = Vector3(-6, 0.1, 32)
-use_collision = true
-size = Vector3(10, 0.2, 10)
-material = SubResource("StandardMaterial_slate")
-metadata/q3_surface = "no_steps"
-
-[node name="Flesh" type="CSGBox3D" parent="SurfaceFlags"]
-position = Vector3(6, 0.1, 32)
-use_collision = true
-size = Vector3(10, 0.2, 10)
-material = SubResource("StandardMaterial_coral")
-metadata/q3_surface = "flesh"
-
-[node name="Dust" type="CSGBox3D" parent="SurfaceFlags"]
-position = Vector3(18, 0.1, 32)
-use_collision = true
-size = Vector3(10, 0.2, 10)
-material = SubResource("StandardMaterial_amber")
-metadata/q3_surface = "dust"
 
 [node name="Volumes" type="Node3D" parent="."]
 
 [node name="Water" type="Area3D" parent="Volumes"]
-position = Vector3(35, -1.5, -28)
+position = Vector3(35, -4.5, -28)
 collision_layer = 2
 collision_mask = 0
 metadata/q3_volume_type = "water"
@@ -308,7 +273,7 @@ metadata/q3_volume_type = "water"
 shape = SubResource("BoxShape3D_pool_volume")
 
 [node name="Surface" type="CSGBox3D" parent="Volumes/Water"]
-position = Vector3(0, 1.5, 0)
+position = Vector3(0, 4.5, 0)
 size = Vector3(14, 0.04, 14)
 material = SubResource("StandardMaterial_water")
 
@@ -327,7 +292,7 @@ size = Vector3(14, 0.04, 14)
 material = SubResource("StandardMaterial_slime")
 
 [node name="Lava" type="Area3D" parent="Volumes"]
-position = Vector3(35, -1.5, 8)
+position = Vector3(35, -4.5, 8)
 collision_layer = 2
 collision_mask = 0
 metadata/q3_volume_type = "lava"
@@ -336,72 +301,72 @@ metadata/q3_volume_type = "lava"
 shape = SubResource("BoxShape3D_pool_volume")
 
 [node name="Surface" type="CSGBox3D" parent="Volumes/Lava"]
-position = Vector3(0, 1.5, 0)
+position = Vector3(0, 4.5, 0)
 size = Vector3(14, 0.04, 14)
 material = SubResource("StandardMaterial_lava")
 
 [node name="Pools" type="Node3D" parent="."]
 
 [node name="WaterSlope" type="CSGBox3D" parent="Pools"]
-position = Vector3(35, -1.5, -24.5)
-rotation_degrees = Vector3(-23.2, 0, 0)
+position = Vector3(35, -4.5, -26)
+rotation_degrees = Vector3(-42, 0, 0)
 use_collision = true
-size = Vector3(13.8, 0.2, 7.6)
+size = Vector3(13.8, 0.2, 13.45)
 material = SubResource("StandardMaterial_slate")
 
 [node name="WaterWallLeft" type="CSGBox3D" parent="Pools"]
-position = Vector3(27.85, -1.5, -28)
+position = Vector3(27.85, -4.5, -28)
 use_collision = true
-size = Vector3(0.3, 3, 14.3)
+size = Vector3(0.3, 9, 14.3)
 material = SubResource("StandardMaterial_slate")
 
 [node name="WaterWallRight" type="CSGBox3D" parent="Pools"]
-position = Vector3(42.15, -1.5, -28)
+position = Vector3(42.15, -4.5, -28)
 use_collision = true
-size = Vector3(0.3, 3, 14.3)
+size = Vector3(0.3, 9, 14.3)
 material = SubResource("StandardMaterial_slate")
 
 [node name="WaterSlopeBack" type="CSGBox3D" parent="Pools"]
-position = Vector3(35, -1.5, -31.5)
-rotation_degrees = Vector3(23.2, 0, 0)
+position = Vector3(35, -4.5, -33.4)
+rotation_degrees = Vector3(70.4, 0, 0)
 use_collision = true
-size = Vector3(13.8, 0.2, 7.6)
+size = Vector3(13.8, 0.2, 9.55)
 material = SubResource("StandardMaterial_slate")
 
 [node name="WaterBottom" type="CSGBox3D" parent="Pools"]
-position = Vector3(35, -3.05, -28)
+position = Vector3(35, -9.05, -31.4)
 use_collision = true
 size = Vector3(13.8, 0.2, 0.8)
 material = SubResource("StandardMaterial_slate")
 
 [node name="LavaSlope" type="CSGBox3D" parent="Pools"]
-position = Vector3(35, -1.5, 11.5)
-rotation_degrees = Vector3(-23.2, 0, 0)
+position = Vector3(35, -4.5, 10)
+rotation_degrees = Vector3(-42, 0, 0)
 use_collision = true
-size = Vector3(13.8, 0.2, 7.6)
+size = Vector3(13.8, 0.2, 13.45)
 material = SubResource("StandardMaterial_coral")
 
 [node name="LavaWallLeft" type="CSGBox3D" parent="Pools"]
-position = Vector3(27.85, -1.5, 8)
+position = Vector3(27.85, -4.5, 8)
 use_collision = true
-size = Vector3(0.3, 3, 14.3)
+size = Vector3(0.3, 9, 14.3)
 material = SubResource("StandardMaterial_coral")
 
 [node name="LavaWallRight" type="CSGBox3D" parent="Pools"]
-position = Vector3(42.15, -1.5, 8)
+position = Vector3(42.15, -4.5, 8)
 use_collision = true
-size = Vector3(0.3, 3, 14.3)
+size = Vector3(0.3, 9, 14.3)
 material = SubResource("StandardMaterial_coral")
 
 [node name="LavaSlopeBack" type="CSGBox3D" parent="Pools"]
-position = Vector3(35, -1.5, 4.5)
-rotation_degrees = Vector3(23.2, 0, 0)
+position = Vector3(35, -4.5, 2.6)
+rotation_degrees = Vector3(70.4, 0, 0)
 use_collision = true
-size = Vector3(13.8, 0.2, 7.6)
+size = Vector3(13.8, 0.2, 9.55)
 material = SubResource("StandardMaterial_coral")
 
 [node name="LavaBottom" type="CSGBox3D" parent="Pools"]
-position = Vector3(35, -3.05, 8)
+position = Vector3(35, -9.05, 4.6)
 use_collision = true
 size = Vector3(13.8, 0.2, 0.8)
 material = SubResource("StandardMaterial_coral")

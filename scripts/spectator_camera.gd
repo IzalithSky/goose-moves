@@ -1,0 +1,40 @@
+extends Camera3D
+
+@export var move_speed := 12.0
+@export var mouse_sensitivity := 0.003
+
+var pitch := 0.0
+var yaw := 0.0
+
+
+func _ready() -> void:
+	pitch = rotation.x
+	yaw = rotation.y
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+
+func _process(delta: float) -> void:
+	var input_vector := Vector3(
+		Input.get_action_strength("spectator_right") - Input.get_action_strength("spectator_left"),
+		Input.get_action_strength("spectator_up") - Input.get_action_strength("spectator_down"),
+		Input.get_action_strength("spectator_forward") - Input.get_action_strength("spectator_back"),
+	)
+	if input_vector.is_zero_approx():
+		return
+
+	input_vector = input_vector.normalized()
+	var forward := -global_transform.basis.z
+	forward.y = 0.0
+	forward = forward.normalized()
+	var right := global_transform.basis.x
+	right.y = 0.0
+	right = right.normalized()
+	var movement_direction := (right * input_vector.x) + (Vector3.UP * input_vector.y) + (forward * input_vector.z)
+	global_position += movement_direction.normalized() * move_speed * delta
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion:
+		yaw -= event.relative.x * mouse_sensitivity
+		pitch = clampf(pitch - (event.relative.y * mouse_sensitivity), deg_to_rad(-89.0), deg_to_rad(89.0))
+		rotation = Vector3(pitch, yaw, 0.0)

@@ -1,0 +1,195 @@
+[gd_scene format=3 uid="uid://c01v4dokqmt34"]
+
+[ext_resource type="Script" path="res://scripts/primitive_test_level.gd" id="1_spawner"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1"]
+sky_top_color = Color(0.105, 0.149, 0.2, 1)
+sky_horizon_color = Color(0.48, 0.59, 0.68, 1)
+ground_bottom_color = Color(0.055, 0.071, 0.086, 1)
+ground_horizon_color = Color(0.26, 0.31, 0.35, 1)
+
+[sub_resource type="Sky" id="Sky_1"]
+sky_material = SubResource("ProceduralSkyMaterial_1")
+
+[sub_resource type="Environment" id="Environment_1"]
+background_mode = 2
+sky = SubResource("Sky_1")
+ambient_light_source = 3
+ambient_light_color = Color(0.58, 0.66, 0.76, 1)
+ambient_light_energy = 0.65
+reflected_light_source = 2
+tonemap_mode = 2
+tonemap_exposure = 1.1
+
+[sub_resource type="Shader" id="Shader_grid"]
+code = "shader_type spatial;
+render_mode diffuse_burley;
+
+uniform vec4 base_color : source_color = vec4(0.133, 0.165, 0.196, 1.0);
+uniform vec4 line_color : source_color = vec4(0.251, 0.314, 0.361, 1.0);
+uniform float cell_size = 1.0;
+
+varying vec3 world_position;
+
+void vertex() {
+	world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+}
+
+void fragment() {
+	vec2 position = world_position.xz / cell_size;
+	vec2 distance_to_line = abs(fract(position - 0.5) - 0.5) / fwidth(position);
+	float grid_line = 1.0 - min(min(distance_to_line.x, distance_to_line.y), 1.0);
+	ALBEDO = mix(base_color.rgb, line_color.rgb, grid_line);
+	ROUGHNESS = 0.92;
+}
+"
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_grid"]
+render_priority = 0
+shader = SubResource("Shader_grid")
+shader_parameter/base_color = Color(0.133, 0.165, 0.196, 1)
+shader_parameter/line_color = Color(0.251, 0.314, 0.361, 1)
+shader_parameter/cell_size = 1.0
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial_slate"]
+albedo_color = Color(0.376471, 0.458824, 0.541176, 1)
+roughness = 0.82
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial_blue"]
+albedo_color = Color(0.360784, 0.560784, 0.74902, 1)
+roughness = 0.82
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial_teal"]
+albedo_color = Color(0.352941, 0.662745, 0.607843, 1)
+roughness = 0.82
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial_amber"]
+albedo_color = Color(0.768627, 0.607843, 0.360784, 1)
+roughness = 0.82
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial_coral"]
+albedo_color = Color(0.788235, 0.466667, 0.403922, 1)
+roughness = 0.82
+
+[node name="PrimitiveTestLevel" type="Node3D" unique_id=575387278]
+script = ExtResource("1_spawner")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=857223112]
+environment = SubResource("Environment_1")
+
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=114099276]
+transform = Transform3D(0.88294756, 0.36994863, -0.2890356, 0, 0.6156615, 0.7880107, 0.46947157, -0.6957722, 0.5435968, 0, 0, 0)
+light_color = Color(1, 0.93, 0.82, 1)
+light_energy = 1.15
+shadow_enabled = true
+directional_shadow_max_distance = 80.0
+
+[node name="GridFloor" type="CSGBox3D" parent="." unique_id=631383474]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
+use_collision = true
+size = Vector3(52, 0.2, 52)
+material = SubResource("ShaderMaterial_grid")
+
+[node name="Cubes" type="Node3D" parent="." unique_id=73206830]
+
+[node name="CubeLow" type="CSGBox3D" parent="Cubes" unique_id=687805750]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -16, 0.25, -14)
+use_collision = true
+size = Vector3(3.5, 0.5, 3.5)
+material = SubResource("StandardMaterial_slate")
+
+[node name="CubeMedium" type="CSGBox3D" parent="Cubes" unique_id=1518014084]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11, 0.75, -14)
+use_collision = true
+size = Vector3(3.5, 1.5, 3.5)
+material = SubResource("StandardMaterial_blue")
+
+[node name="CubeHigh" type="CSGBox3D" parent="Cubes" unique_id=1172027120]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 1.5, -14)
+use_collision = true
+size = Vector3(3.5, 3, 3.5)
+material = SubResource("StandardMaterial_teal")
+
+[node name="CubeTall" type="CSGBox3D" parent="Cubes" unique_id=600430140]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 2.5, -14)
+use_collision = true
+size = Vector3(3.5, 5, 3.5)
+material = SubResource("StandardMaterial_amber")
+
+[node name="Stairs" type="Node3D" parent="." unique_id=307034854]
+
+[node name="StepOne" type="CSGBox3D" parent="Stairs" unique_id=1931988798]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0.2, -15)
+use_collision = true
+size = Vector3(6, 0.4, 1.5)
+material = SubResource("StandardMaterial_blue")
+
+[node name="StepTwo" type="CSGBox3D" parent="Stairs" unique_id=1069517244]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0.4, -13.5)
+use_collision = true
+size = Vector3(6, 0.8, 1.5)
+material = SubResource("StandardMaterial_blue")
+
+[node name="StepThree" type="CSGBox3D" parent="Stairs" unique_id=48169379]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0.6, -12)
+use_collision = true
+size = Vector3(6, 1.2, 1.5)
+material = SubResource("StandardMaterial_teal")
+
+[node name="StepFour" type="CSGBox3D" parent="Stairs" unique_id=2115723855]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0.8, -10.5)
+use_collision = true
+size = Vector3(6, 1.6, 1.5)
+material = SubResource("StandardMaterial_teal")
+
+[node name="StepFive" type="CSGBox3D" parent="Stairs" unique_id=800878987]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 1.15, -9)
+use_collision = true
+size = Vector3(6, 2.3, 1.5)
+material = SubResource("StandardMaterial_amber")
+
+[node name="Ramps" type="Node3D" parent="." unique_id=2086632070]
+
+[node name="GentleRamp" type="CSGBox3D" parent="Ramps" unique_id=756429856]
+transform = Transform3D(1, 0, 0, 0, 0.9781476, 0.2079117, 0, -0.2079117, 0.9781476, -13, 1.156, 5)
+use_collision = true
+size = Vector3(5, 0.45, 9)
+material = SubResource("StandardMaterial_slate")
+
+[node name="SteepRamp" type="CSGBox3D" parent="Ramps" unique_id=1116930699]
+transform = Transform3D(1, 0, 0, 0, 0.92718387, -0.3746066, 0, 0.3746066, 0.92718387, -4, 1.708, 5)
+use_collision = true
+size = Vector3(5, 0.45, 8)
+material = SubResource("StandardMaterial_coral")
+
+[node name="WideRamp" type="CSGBox3D" parent="Ramps" unique_id=470597854]
+transform = Transform3D(1, 0, 0, 0, 0.9612617, 0.27563736, 0, -0.27563736, 0.9612617, 6, 1.62, 5)
+use_collision = true
+size = Vector3(7, 0.5, 10)
+material = SubResource("StandardMaterial_teal")
+
+[node name="Kerbs" type="Node3D" parent="." unique_id=490777812]
+
+[node name="KerbLow" type="CSGBox3D" parent="Kerbs" unique_id=283984418]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, 0.1, 15)
+use_collision = true
+size = Vector3(6, 0.2, 1)
+material = SubResource("StandardMaterial_slate")
+
+[node name="KerbMedium" type="CSGBox3D" parent="Kerbs" unique_id=564011964]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 0.25, 15)
+use_collision = true
+size = Vector3(6, 0.5, 1)
+material = SubResource("StandardMaterial_blue")
+
+[node name="KerbHigh" type="CSGBox3D" parent="Kerbs" unique_id=1988704841]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0.45, 15)
+use_collision = true
+size = Vector3(6, 0.9, 1)
+material = SubResource("StandardMaterial_teal")
+
+[node name="KerbTall" type="CSGBox3D" parent="Kerbs" unique_id=1493509867]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0.75, 15)
+use_collision = true
+size = Vector3(6, 1.5, 1)
+material = SubResource("StandardMaterial_amber")

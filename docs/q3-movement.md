@@ -39,6 +39,19 @@ v += accelspeed · wishdir
 - **wishspeed** derived from input, capped at `ps->speed = 320` on ground (duck/water scale it lower). **No 30-cap** — that's Quake1/Source, not Q3.
 - Jump sets z-velocity, so it never stacks; and it requires a key release each time → **no hold-to-bhop in VQ3**.
 
+### Crouch & slow walk
+
+- **Crouch** is a held down-input (`upmove < 0`), not a toggle. `PM_CheckDuck`
+  keeps the 30×30 footprint, changes the hull from z `-24..32` (56 u) to
+  `-24..16` (40 u), and drops viewheight from 26 to 12. Releasing crouch only
+  stands if a zero-length trace with the standing hull is clear. While walking,
+  `pm_duckScale = 0.25` caps wishspeed at 80 u/s; it is not an extra friction.
+- **Slow walk** is produced client-side: with `cl_run 1` (the default), holding
+  `+speed` sends forward/right input at 64 instead of 127 and sets
+  `BUTTON_WALKING`. The resulting full-input wishspeed is `320 × 64 / 127` =
+  **161.26 u/s**. `BUTTON_WALKING` selects walk animations and suppresses
+  footsteps; the server clears it if either move component exceeds 64.
+
 ## Key emergent behaviors
 
 - **Strafe jumping / speed > 320:** because the cap is on the projection, an off-axis wishdir keeps adding speed → total velocity grows unbounded. id's own code calls this the *"strafe jump maxspeed bug"*; the physically-correct clamp is present but `#if`'d out ("feels bad").
@@ -87,6 +100,26 @@ So "just different friction?" — no for ice (friction-off + air-accel + gravity
    (each: `Friction` → build wishdir/wishspeed → `Accelerate` → `StepSlideMove` [+gravity if air])
 5. `GroundTrace` + `SetWaterLevel` again — for next frame + land events
 6. `Weapon`
+
+## Scale & Godot conversion
+
+Q3 game units are arbitrary: the movement code has no SI conversion. The
+[Q3Radiant mapping manual](https://icculus.org/gtkradiant/documentation/q3radiant_manual/appndx/appn_c.htm)
+uses the conventional scale **8 units ≈ 1 foot (30.48 cm)**. Use that convention
+when moving this controller to Godot, whose default 3D unit is one metre:
+
+- **1 Q3 unit = 0.0381 m**; **1 m = 26.247 Q3 units**.
+- The 30×30×56 Q3 player hull becomes **1.143×1.143×2.134 m**. Its 50-unit
+  standing eye height (`MINS_Z = -24`, `viewheight = 26`) becomes **1.905 m**.
+- Convert every value carrying a distance dimension: `g_speed 320` → **12.192
+  m/s**, `g_gravity 800` → **30.48 m/s²**, jump velocity 270 → **10.287 m/s**,
+  stop speed 100 → **3.81 m/s**, and `STEPSIZE 18` → **0.6858 m**.
+- Keep the dimensionless tuning values unchanged: acceleration **10 / 1**,
+  friction **6**, `OVERCLIP` **1.001**, and the walk normal **0.7**.
+
+The mapping manual describes the scale as approximate, so it is a convention
+rather than an engine-enforced physical unit. The project controller uses this
+convention consistently.
 
 ## Constants (VQ3)
 

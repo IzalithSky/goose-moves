@@ -17,9 +17,9 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	var input_vector := Vector3(
-		Input.get_action_strength("spectator_right") - Input.get_action_strength("spectator_left"),
-		Input.get_action_strength("spectator_up") - Input.get_action_strength("spectator_down"),
-		Input.get_action_strength("spectator_forward") - Input.get_action_strength("spectator_back"),
+		Input.get_action_strength("player_right") - Input.get_action_strength("player_left"),
+		Input.get_action_strength("player_jump") - Input.get_action_strength("player_crouch"),
+		Input.get_action_strength("player_forward") - Input.get_action_strength("player_back"),
 	)
 	if input_vector.is_zero_approx():
 		return

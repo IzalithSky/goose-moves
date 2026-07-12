@@ -5,28 +5,31 @@ signal bindings_changed
 const SAVE_PATH := "user://keybindings.cfg"
 const SECTION := "bindings"
 const ACTIONS: Array[String] = [
-	"spectator_forward",
-	"spectator_back",
-	"spectator_left",
-	"spectator_right",
-	"spectator_up",
-	"spectator_down",
+	"player_forward",
+	"player_back",
+	"player_left",
+	"player_right",
+	"player_jump",
+	"player_crouch",
+	"player_walk",
 ]
 const ACTION_LABELS := {
-	"spectator_forward": "Move Forward",
-	"spectator_back": "Move Back",
-	"spectator_left": "Move Left",
-	"spectator_right": "Move Right",
-	"spectator_up": "Move Up",
-	"spectator_down": "Move Down",
+	"player_forward": "Move Forward",
+	"player_back": "Move Back",
+	"player_left": "Move Left",
+	"player_right": "Move Right",
+	"player_jump": "Jump",
+	"player_crouch": "Crouch",
+	"player_walk": "Slow Walk",
 }
 const DEFAULT_BINDINGS := {
-	"spectator_forward": KEY_W,
-	"spectator_back": KEY_S,
-	"spectator_left": KEY_A,
-	"spectator_right": KEY_D,
-	"spectator_up": KEY_R,
-	"spectator_down": KEY_F,
+	"player_forward": KEY_W,
+	"player_back": KEY_S,
+	"player_left": KEY_A,
+	"player_right": KEY_D,
+	"player_jump": KEY_SPACE,
+	"player_crouch": KEY_CTRL,
+	"player_walk": KEY_SHIFT,
 }
 
 var bindings: Dictionary = {}

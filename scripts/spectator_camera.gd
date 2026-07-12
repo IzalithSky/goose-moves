@@ -10,6 +10,8 @@ var yaw := 0.0
 func _ready() -> void:
 	pitch = rotation.x
 	yaw = rotation.y
+	mouse_sensitivity = Settings.mouse_sensitivity
+	Settings.settings_changed.connect(on_settings_changed)
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
@@ -38,3 +40,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		yaw -= event.relative.x * mouse_sensitivity
 		pitch = clampf(pitch - (event.relative.y * mouse_sensitivity), deg_to_rad(-89.0), deg_to_rad(89.0))
 		rotation = Vector3(pitch, yaw, 0.0)
+
+
+func on_settings_changed() -> void:
+	mouse_sensitivity = Settings.mouse_sensitivity

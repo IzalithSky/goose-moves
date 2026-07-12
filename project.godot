@@ -11,9 +11,14 @@ config_version=5
 [application]
 
 config/name="goose_moves"
-run/main_scene="res://scenes/primitive_test_level.tscn"
+run/main_scene="res://scenes/main_menu.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 config/icon="res://icon.svg"
+
+[autoload]
+
+Settings="*res://scripts/settings.gd"
+KeybindingsSettings="*res://scripts/keybindings_settings.gd"
 
 [input]
 

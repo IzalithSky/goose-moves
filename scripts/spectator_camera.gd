@@ -10,7 +10,7 @@ var yaw := 0.0
 func _ready() -> void:
 	pitch = rotation.x
 	yaw = rotation.y
-	mouse_sensitivity = Settings.mouse_sensitivity
+	_apply_controller_settings()
 	Settings.settings_changed.connect(on_settings_changed)
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
@@ -43,4 +43,10 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func on_settings_changed() -> void:
-	mouse_sensitivity = Settings.mouse_sensitivity
+	_apply_controller_settings()
+
+
+func _apply_controller_settings() -> void:
+	move_speed = Settings.get_controller_setting("move_speed", Settings.CHARACTER_SPECTATOR)
+	mouse_sensitivity = Settings.get_controller_setting("mouse_sensitivity", Settings.CHARACTER_SPECTATOR)
+	fov = Settings.get_controller_setting("fov", Settings.CHARACTER_SPECTATOR)

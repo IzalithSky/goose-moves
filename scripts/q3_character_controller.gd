@@ -78,6 +78,7 @@ var water_jump_time_remaining := 0.0
 
 
 func _ready() -> void:
+	_apply_controller_settings()
 	floor_max_angle = deg_to_rad(max_slope_angle)
 	floor_stop_on_slope = false
 	floor_snap_length = step_height
@@ -86,8 +87,6 @@ func _ready() -> void:
 	_set_stance_geometry(false)
 	pitch = head.rotation.x
 	yaw = rotation.y
-	mouse_sensitivity = Settings.mouse_sensitivity
-	camera.fov = Settings.fov
 	Settings.settings_changed.connect(on_settings_changed)
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
@@ -491,5 +490,26 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func on_settings_changed() -> void:
-	mouse_sensitivity = Settings.mouse_sensitivity
-	camera.fov = Settings.fov
+	_apply_controller_settings()
+
+
+func _apply_controller_settings() -> void:
+	move_speed = Settings.get_controller_setting("move_speed", Settings.CHARACTER_Q3)
+	ground_acceleration = Settings.get_controller_setting("ground_acceleration", Settings.CHARACTER_Q3)
+	air_acceleration = Settings.get_controller_setting("air_acceleration", Settings.CHARACTER_Q3)
+	friction = Settings.get_controller_setting("friction", Settings.CHARACTER_Q3)
+	stop_speed = Settings.get_controller_setting("stop_speed", Settings.CHARACTER_Q3)
+	gravity = Settings.get_controller_setting("gravity", Settings.CHARACTER_Q3)
+	jump_velocity = Settings.get_controller_setting("jump_velocity", Settings.CHARACTER_Q3)
+	step_height = Settings.get_controller_setting("step_height", Settings.CHARACTER_Q3)
+	max_slope_angle = Settings.get_controller_setting("max_slope_angle", Settings.CHARACTER_Q3)
+	crouch_speed_scale = Settings.get_controller_setting("crouch_speed_scale", Settings.CHARACTER_Q3)
+	walk_speed_scale = Settings.get_controller_setting("walk_speed_scale", Settings.CHARACTER_Q3)
+	swim_speed_scale = Settings.get_controller_setting("swim_speed_scale", Settings.CHARACTER_Q3)
+	water_acceleration = Settings.get_controller_setting("water_acceleration", Settings.CHARACTER_Q3)
+	water_friction = Settings.get_controller_setting("water_friction", Settings.CHARACTER_Q3)
+	slime_friction = Settings.get_controller_setting("slime_friction", Settings.CHARACTER_Q3)
+	mouse_sensitivity = Settings.get_controller_setting("mouse_sensitivity", Settings.CHARACTER_Q3)
+	camera.fov = Settings.get_controller_setting("fov", Settings.CHARACTER_Q3)
+	floor_max_angle = deg_to_rad(max_slope_angle)
+	floor_snap_length = step_height

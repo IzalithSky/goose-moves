@@ -11,7 +11,7 @@ grow_vertical = 2
 script = ExtResource("1_settings")
 
 [node name="Panel" type="PanelContainer" parent="."]
-custom_minimum_size = Vector2(440, 0)
+custom_minimum_size = Vector2(560, 0)
 layout_mode = 2
 
 [node name="Margin" type="MarginContainer" parent="Panel"]
@@ -31,49 +31,33 @@ theme_override_font_sizes/font_size = 28
 text = "Settings"
 horizontal_alignment = 1
 
-[node name="SensitivityRow" type="HBoxContainer" parent="Panel/Margin/VBox"]
+[node name="CharacterRow" type="HBoxContainer" parent="Panel/Margin/VBox"]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="Label" type="Label" parent="Panel/Margin/VBox/SensitivityRow"]
+[node name="Label" type="Label" parent="Panel/Margin/VBox/CharacterRow"]
 layout_mode = 2
-text = "Mouse sensitivity"
+text = "Character"
 
-[node name="SensitivitySlider" type="HSlider" parent="Panel/Margin/VBox/SensitivityRow"]
+[node name="CharacterOption" type="OptionButton" parent="Panel/Margin/VBox/CharacterRow"]
 custom_minimum_size = Vector2(180, 0)
 layout_mode = 2
 size_flags_horizontal = 3
-min_value = 0.001
-max_value = 0.02
-step = 0.001
-value = 0.003
 
-[node name="SensitivityValue" type="Label" parent="Panel/Margin/VBox/SensitivityRow"]
-custom_minimum_size = Vector2(42, 0)
+[node name="ControllerTitle" type="Label" parent="Panel/Margin/VBox"]
 layout_mode = 2
-text = "0.003"
+text = "Q3 Controls"
+horizontal_alignment = 1
 
-[node name="FovRow" type="HBoxContainer" parent="Panel/Margin/VBox"]
+[node name="ScrollContainer" type="ScrollContainer" parent="Panel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 300)
 layout_mode = 2
-theme_override_constants/separation = 12
+size_flags_vertical = 3
 
-[node name="Label" type="Label" parent="Panel/Margin/VBox/FovRow"]
-layout_mode = 2
-text = "Field of view"
-
-[node name="FovSlider" type="HSlider" parent="Panel/Margin/VBox/FovRow"]
-custom_minimum_size = Vector2(180, 0)
+[node name="ControllerSettingsBox" type="VBoxContainer" parent="Panel/Margin/VBox/ScrollContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
-min_value = 60.0
-max_value = 140.0
-step = 1.0
-value = 100.0
-
-[node name="FovValue" type="Label" parent="Panel/Margin/VBox/FovRow"]
-custom_minimum_size = Vector2(42, 0)
-layout_mode = 2
-text = "100°"
+theme_override_constants/separation = 10
 
 [node name="FullscreenToggle" type="CheckButton" parent="Panel/Margin/VBox"]
 layout_mode = 2

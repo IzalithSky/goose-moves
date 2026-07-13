@@ -18,6 +18,7 @@ func _ready() -> void:
 	reset_button.pressed.connect(on_reset_pressed)
 	back_button.pressed.connect(on_back_pressed)
 	KeybindingsSettings.bindings_changed.connect(refresh_labels)
+	KeybindingsSettings.actions_changed.connect(build_rows)
 
 
 func _input(event: InputEvent) -> void:
@@ -62,16 +63,20 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func focus_first() -> void:
-	for action in KeybindingsSettings.ACTIONS:
+	for action in KeybindingsSettings.get_actions():
 		if binding_buttons.has(action):
 			((binding_buttons[action] as Array)[0] as Button).grab_focus()
 			return
 
 
 func build_rows() -> void:
-	for action in KeybindingsSettings.ACTIONS:
+	stop_listening()
+	binding_buttons.clear()
+	for child in action_grid.get_children():
+		child.queue_free()
+	for action in KeybindingsSettings.get_actions():
 		var label := Label.new()
-		label.text = str(KeybindingsSettings.ACTION_LABELS[action])
+		label.text = KeybindingsSettings.get_action_label(action)
 		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		action_grid.add_child(label)
 
@@ -93,7 +98,7 @@ func build_rows() -> void:
 
 
 func refresh_labels() -> void:
-	for action in KeybindingsSettings.ACTIONS:
+	for action in KeybindingsSettings.get_actions():
 		if not binding_buttons.has(action):
 			continue
 		var buttons := binding_buttons[action] as Array

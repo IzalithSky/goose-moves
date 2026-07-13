@@ -56,6 +56,7 @@ enum MovementMode {
 
 # Runtime values; overwritten from Settings in _ready and on settings_changed.
 var movement_mode := MovementMode.VQ3
+var auto_jump := false
 var move_speed := Q3_SPEED * Q3_METERS_PER_UNIT
 var ground_acceleration := Q3_GROUND_ACCELERATION
 var air_acceleration := Q3_AIR_ACCELERATION
@@ -146,7 +147,7 @@ func _physics_process(delta: float) -> void:
 			return
 		_water_move(movement_input, delta)
 		return
-	if grounded and Input.is_action_just_pressed("player_jump") and not Input.is_action_pressed("player_crouch"):
+	if grounded and _jump_requested() and not Input.is_action_pressed("player_crouch"):
 		velocity.y = jump_velocity
 		grounded = false
 
@@ -223,6 +224,12 @@ func _get_movement_scale() -> float:
 
 func _get_vertical_input() -> float:
 	return (Input.get_action_strength("player_jump") - Input.get_action_strength("player_crouch"))
+
+
+func _jump_requested() -> bool:
+	if auto_jump:
+		return Input.is_action_pressed("player_jump")
+	return Input.is_action_just_pressed("player_jump")
 
 
 func _update_crouch_state() -> void:
@@ -581,6 +588,7 @@ func on_settings_changed() -> void:
 
 func _apply_controller_settings() -> void:
 	movement_mode = roundi(Settings.get_controller_setting("movement_mode", Settings.CHARACTER_Q3))
+	auto_jump = Settings.get_controller_setting("auto_jump", Settings.CHARACTER_Q3) >= 0.5
 	move_speed = Settings.get_controller_setting("move_speed", Settings.CHARACTER_Q3)
 	ground_acceleration = Settings.get_controller_setting("ground_acceleration", Settings.CHARACTER_Q3)
 	air_acceleration = Settings.get_controller_setting("air_acceleration", Settings.CHARACTER_Q3)

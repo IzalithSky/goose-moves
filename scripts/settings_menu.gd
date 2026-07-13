@@ -101,7 +101,16 @@ func build_controller_settings() -> void:
 		var key := str(def["key"])
 		var value := Settings.get_controller_setting(key)
 		var control_type := str(def.get("control", "text"))
-		if control_type == "option":
+		if control_type == "toggle":
+			var toggle := CheckButton.new()
+			toggle.set_pressed_no_signal(value >= 0.5)
+			toggle.toggled.connect(on_controller_toggle_changed.bind(key))
+			row.add_child(toggle)
+			controller_controls[key] = {
+				"toggle": toggle,
+				"def": def,
+			}
+		elif control_type == "option":
 			var option_button := OptionButton.new()
 			option_button.custom_minimum_size = Vector2(180.0, 0.0)
 			option_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -193,6 +202,10 @@ func on_controller_slider_changed(value: float, key: String) -> void:
 
 func on_controller_option_selected(index: int, key: String, option_button: OptionButton) -> void:
 	Settings.set_controller_setting(key, float(option_button.get_item_metadata(index)))
+
+
+func on_controller_toggle_changed(enabled: bool, key: String) -> void:
+	Settings.set_controller_setting(key, 1.0 if enabled else 0.0)
 
 
 func on_controller_text_submitted(text: String, key: String, line_edit: LineEdit) -> void:

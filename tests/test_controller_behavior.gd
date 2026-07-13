@@ -22,6 +22,8 @@ var apex := 0.0
 var injected := false
 var expected := 0.0
 var bhop_speed := 0.0
+var autojump_started := false
+var autojump_landed := false
 
 
 func _ready() -> void:
@@ -251,4 +253,28 @@ func _crouch_up() -> void:
 	check("stood back up with clear headroom", not c.is_crouching)
 	check_approx("standing hull height = 56 u", c.body_shape.size.y, 56.0 * U)
 	check_approx("standing eye height = 50 u", c.head.position.y, 50.0 * U)
+	c.auto_jump = true
+	c.velocity = Vector3(8, 0, 0)
+	Input.action_press("player_jump")
+	_goto("autojump")
+
+
+func _autojump() -> void:
+	if not autojump_started:
+		if c.is_on_floor():
+			return
+		autojump_started = true
+		check("held jump starts autojump without a fresh press", c.velocity.y > 0.0)
+		return
+	if not autojump_landed:
+		if not c.is_on_floor():
+			return
+		autojump_landed = true
+		return
+	Input.action_release("player_jump")
+	c.auto_jump = false
+	check("held autojump fires again immediately after landing", not c.is_on_floor())
+	check_approx("autojump landing frame skips ground friction and starts a jump",
+		c.velocity.y, c.jump_velocity - c.gravity * DT, 1e-4)
+	check_approx("autojump preserves landing speed without a friction tick", c.velocity.x, 8.0, 1e-4)
 	finish()

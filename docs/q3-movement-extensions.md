@@ -96,6 +96,10 @@ So a Slash-style slide is literally *"call the airborne skeleton while `grounded
 
 Same `Friction` operator everywhere: `drop = max(speed, controlFloor)·coefficient·dt`, then scale velocity toward zero. Both parameters can move: VQ3 uses coefficient `6`, floor `100`; current Warsow classic movement uses coefficient `8`, floor `12`; a slide drives the coefficient toward `0`.
 
+## Autojump / continuous jump — an INPUT extension
+
+Warsow's `PMFEAT_CONTINOUSJUMP` does not add a landing detector or a second jump path. `PM_CheckJump` checks held jump every tick and merely bypasses the `PMF_JUMP_HELD` release latch; the existing normal-state, water, grounded, and jump-enabled gates still decide whether the surface is jumpable (`gs_pmove.cpp:1126`). Because jump checking precedes friction (`gs_pmove.cpp:2021`), a held jump fires on the first grounded tick without losing speed to ground friction. The controller profile exposes the same behavior as **Autojump**, off by default to preserve VQ3 input behavior.
+
 ## Minimal implementation surface
 
 One integrator (`A`, `R`, `Friction`, dispatch) stays fixed; a `MovementMode` supplies:
@@ -108,6 +112,7 @@ groundFrictionCoef(state)        # ~0 while sliding
 groundControlFloor(state)        # VQ3 100; Warsow classic 12
 groundAccelCoef(state)           # VQ3 10; Warsow classic 12
 slideActive(state)               # crouch+grounded+speed predicate
+jumpRequested(input, autojump)   # just-pressed normally; held with autojump
 ```
 
 Switching VQ3 ↔ CPMA ↔ QC ↔ slide = swapping this struct. No branches in the mover.
@@ -122,4 +127,5 @@ Switching VQ3 ↔ CPMA ↔ QC ↔ slide = swapping this struct. No branches in t
 | `R` air-control | **add** (fwd) | **add** (fwd) | add (Slash) |
 | ground accel value | **replace** (12) | tune | tune |
 | ground `Friction` | **replace** (coef 8, floor 12) | tune | **replace** (~0 coef) |
+| jump input gate | optional held autojump | optional held autojump | optional held autojump |
 | gravity / slide / step / trace | unchanged | unchanged | +slope-gravity |

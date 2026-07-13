@@ -24,6 +24,8 @@ var expected := 0.0
 var bhop_speed := 0.0
 var autojump_started := false
 var autojump_landed := false
+var crouch_slide_landed := false
+var crouch_slide_landing_speed := 0.0
 
 
 func _ready() -> void:
@@ -277,4 +279,28 @@ func _autojump() -> void:
 	check_approx("autojump landing frame skips ground friction and starts a jump",
 		c.velocity.y, c.jump_velocity - c.gravity * DT, 1e-4)
 	check_approx("autojump preserves landing speed without a friction tick", c.velocity.x, 8.0, 1e-4)
+	c.global_position = Vector3(0, 2, 0)
+	c.velocity = Vector3(8, -1, 0)
+	c.crouch_slide_enabled = true
+	Input.action_press("player_crouch")
+	_goto("crouch_slide")
+
+
+func _crouch_slide() -> void:
+	if not c.is_crouch_sliding:
+		if phase_frame > 2:
+			fail("crouch slide did not arm while airborne")
+			finish()
+		return
+	if not crouch_slide_landed:
+		if not c.is_on_floor():
+			return
+		crouch_slide_landed = true
+		crouch_slide_landing_speed = c.velocity.x
+		return
+	Input.action_release("player_crouch")
+	c.crouch_slide_enabled = false
+	check("armed crouch slide remains active on landing", c.is_crouch_sliding)
+	check_approx("crouch slide landing tick applies zero ground friction",
+		c.velocity.x, crouch_slide_landing_speed, 1e-4)
 	finish()

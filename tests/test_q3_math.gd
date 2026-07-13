@@ -21,6 +21,7 @@ func step() -> void:
 	_friction()
 	_accelerate()
 	_warsow_classic()
+	_warsow_crouch_slide()
 	_projection()
 	_wish_speed()
 	finish()
@@ -154,6 +155,42 @@ func _warsow_classic() -> void:
 	var controlled_velocity: Vector3 = c.velocity
 	c._apply_air_control(Vector3.RIGHT, Vector2(1, 1), DT)
 	check_vec3("Warsow air control rejects side input", c.velocity, controlled_velocity)
+	c.movement_mode = c.MovementMode.VQ3
+
+
+func _warsow_crouch_slide() -> void:
+	c.movement_mode = c.MovementMode.WARSOW_CLASSIC
+	c.crouch_slide_enabled = true
+	c.is_crouch_sliding = true
+	c.crouch_slide_time_remaining = 2.0
+	check_approx("Warsow crouch slide starts with zero friction", c._get_ground_friction(), 0.0)
+	c.crouch_slide_time_remaining = 0.125
+	check_approx("Warsow crouch slide square-root fade reaches half friction",
+		c._get_ground_friction(), 4.0)
+
+	c.velocity = Vector3.ZERO
+	c._crouch_slide_accelerate(Vector3.RIGHT, 1.0, 12.0, DT)
+	check_approx("Warsow crouch slide applies 3x ground control", c.velocity.x, 0.6)
+	c.velocity = Vector3(10, 0, 0)
+	c._crouch_slide_accelerate(Vector3.BACK, 1.0, 12.0, DT)
+	check_approx("Warsow crouch slide steering cannot exceed entry speed", c.velocity.length(), 10.0)
+	check("Warsow crouch slide steering still redirects velocity", c.velocity.z > 0.0)
+
+	c.is_crouch_sliding = false
+	c.crouch_slide_time_remaining = 0.0
+	c.velocity = Vector3(8, 0, 0)
+	Input.action_press("player_crouch")
+	c._update_crouch_slide(DT, false)
+	check("Warsow crouch slide arms while airborne", c.is_crouch_sliding)
+	check_approx("Warsow crouch slide arms a two-second timer",
+		c.crouch_slide_time_remaining, 2.0)
+	Input.action_release("player_crouch")
+	c._update_crouch_slide(DT, true)
+	check_approx("releasing crouch enters the 500 ms fade",
+		c.crouch_slide_time_remaining, 0.5)
+	c.crouch_slide_enabled = false
+	c.is_crouch_sliding = false
+	c.crouch_slide_time_remaining = 0.0
 	c.movement_mode = c.MovementMode.VQ3
 
 

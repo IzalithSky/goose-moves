@@ -7,6 +7,7 @@
 		"mouse_sensitivity": 0.003,
 		"movement_mode": 0.0,
 		"auto_jump": 0.0,
+		"crouch_slide": 0.0,
 		"move_speed": 12.192,
 		"ground_acceleration": 10.0,
 		"air_acceleration": 1.0,

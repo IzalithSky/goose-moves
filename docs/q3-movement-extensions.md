@@ -2,7 +2,7 @@
 
 Extends [q3-movement.md](q3-movement.md). Everything here is framed as **how each mode layers over or replaces a specific VQ3 math piece** — nothing throws the VQ3 core away.
 
-**Confidence:** VQ3 pieces are source-verified (see base doc). CPM's air-control operator and constants are source-verified against the **Warsow/qfusion `GS_CLASSICBUNNY` reimplementation** at `references/warsow` revision `cc22b709` (CPMA itself is closed-source). QC is **behavioral inference** (closed-source; community-reported, patch-sensitive). Slide behavior is from Q4/QC docs + community, not code. Treat CPM/QC numbers as canonical-reimplementation values, not ground truth.
+**Confidence:** VQ3 pieces are source-verified (see base doc). CPM's air-control operator and constants, plus Warsow's autojump, ramp double jump, crouch slide, and wall jump, are source-verified against **Warsow/qfusion** at `references/warsow` revision `cc22b709` (CPMA itself is closed-source). QC is **behavioral inference** (closed-source; community-reported, patch-sensitive). Q4/QC slide behavior is from docs + community, not code. Treat CPM/QC numbers as canonical-reimplementation values, not ground truth.
 
 ## The VQ3 pieces you extend
 
@@ -76,12 +76,12 @@ Warsow does not call this path "CPM". `GS_CLASSICBUNNY` clears `PMFEAT_FWDBUNNY`
 
 ## Crouch slide / skating — a GROUND extension
 
-Slides live on the **ground path**, so they extend `Friction`, not the air accel — but the trick is to *run air rules while grounded*.
+Slides live on the **ground path**, so they primarily extend `Friction`. Q4 and QC illustrate the coast-vs-air-rules split; Warsow's implementation below is a separate controlled-ground variant.
 
 - **REPLACE ground `Friction`**: coefficient → `~0` (or a low `slideFriction`) while in the slide state. This is the whole point — momentum stops bleeding.
 - **REPLACE `CAP`**: a low speed cap so any speed above it is preserved, not accelerated to (mirrors air's low effective cap).
-- **Enable gravity-along-slope**: so downhill surfaces *add* speed (component along the plane) — the slide-specific gain.
-- **Entry/exit**: gate on crouch + grounded + enough speed; add a timer/decay so flat slides die.
+- **Optionally enable gravity-along-slope**: Q4/QC-style downhill surfaces can *add* speed (component along the plane); Warsow does not add this operator.
+- **Entry/exit**: commonly gate on crouch + grounded + enough speed and add a timer/decay; Warsow instead arms its slide while airborne for the next landing.
 
 Two flavors (same friction-off core, differ on whether `A`/`R` stay live):
 
@@ -89,8 +89,20 @@ Two flavors (same friction-off core, differ on whether `A`/`R` stay live):
 |---|---|---|---|
 | **Q4 coast** | → ~0 | **off** (direction locked) | pure momentum coast |
 | **QC Slash** | → ~0 | **on** (`A`+`R` run) | air-strafe on the ground: steer + gain |
+| **Warsow** | `0`, then fade to `8` | ground `A ×3`; `R` off | landing-armed controlled slide |
 
 So a Slash-style slide is literally *"call the airborne skeleton while `grounded`, with friction ≈ 0."* A Q4-style slide keeps friction ≈ 0 but suppresses the accelerate — you carry the velocity you entered with.
+
+### Warsow crouch slide — landing-armed ground control
+
+Warsow has a third flavor, gated by `PMFEAT_CROUCHSLIDING` and explicitly excluded from `PMFEAT_DEFAULT` (`gs_public.h:581`). It is supported by the mover but **off in the default game feature set**.
+
+The project exposes this implementation as the **Crouch slide** controller-profile toggle, also off by default.
+
+- **ARM IN AIR**: crouch held + horizontal speed above `maxWalkSpeed` (default `160`) + no cooldown. The check refuses to start while already grounded; it sets the slide flag airborne so the slide takes effect on landing (`gs_pmove.cpp:1401`).
+- **ZERO-THEN-FADE FRICTION**: a nominal `1500 ms` zero-friction phase followed by a `500 ms` square-root fade back to normal friction. The timer starts when armed, so airtime consumes part of it. Releasing crouch or falling below the speed threshold clamps immediately to the fade; completion starts a `700 ms` cooldown (`q_comref.h:159`, `gs_pmove.cpp:522`, `gs_pmove.cpp:1926`).
+- **GROUND `A` STAYS LIVE**: ordinary ground acceleration runs with acceleration amount multiplied by `3`, but the result is clamped so it cannot exceed `max(wishspeed, entrySpeed)` (`gs_pmove.cpp:571`). This makes it a steerable, strongly controlled ground slide—not Q4's direction-locked coast and not Slash's airborne skeleton on ground.
+- **NO SPECIAL SLOPE GRAVITY**: the normal grounded movement path remains in use; the slide itself adds no downhill gravity operator.
 
 ## Friction is its own axis
 
@@ -99,6 +111,27 @@ Same `Friction` operator everywhere: `drop = max(speed, controlFloor)·coefficie
 ## Autojump / continuous jump — an INPUT extension
 
 Warsow's `PMFEAT_CONTINOUSJUMP` does not add a landing detector or a second jump path. `PM_CheckJump` checks held jump every tick and merely bypasses the `PMF_JUMP_HELD` release latch; the existing normal-state, water, grounded, and jump-enabled gates still decide whether the surface is jumpable (`gs_pmove.cpp:1126`). Because jump checking precedes friction (`gs_pmove.cpp:2021`), a held jump fires on the first grounded tick without losing speed to ground friction. The controller profile exposes the same behavior as **Autojump**, off by default to preserve VQ3 input behavior.
+
+## Ramp / ledge double jump — grounded vertical carry
+
+Warsow has no coyote-time or post-ledge jump: `PM_CheckJump` still returns immediately when `groundentity == -1`. Its "double jump" is instead a **grounded upward-momentum boost**:
+
+```
+if grounded:
+  if v.z > 0: v.z += jumpSpeed
+  else:       v.z  = jumpSpeed
+```
+
+The ground categorizer permits the 0.25-unit ground trace while `v.z ≤ 180`; above `180` it forces airborne. Any positive grounded `v.z` is therefore preserved and added to, while `v.z > 100` also emits the named `EV_DOUBLEJUMP` event (`gs_pmove.cpp:1030`, `gs_pmove.cpp:1151`, `gs_pmove.cpp:1171`). With the default `jumpSpeed=280`, the named ramp/ledge window produces roughly `381–460 u/s` upward. There is no explicit ledge detector—the effect emerges when a ramp, step, or edge leaves positive vertical velocity while the ground probe still hits.
+
+## Wall jump — a CONTACT extension
+
+Yes. `PMFEAT_WALLJUMP` is included in Warsow's default feature set. The shared **Dash/Walljump** special button triggers it while airborne, subject to a release latch and a `1300 ms` cooldown (`gs_pmove.cpp:1279`).
+
+- **CONTACT**: probes nearby directions for a wall, excluding sky, `SURF_NOWALLJUMP`, players, and surfaces with `|normal.z| ≥ 0.3` (`gs_pmove.cpp:124`, `gs_pmove.cpp:1335`).
+- **NEAR-GROUND GUARD**: within one `18 u` step of walkable ground, it requires jump held (or dash-speed upward travel); away from ground, special alone is enough.
+- **HORIZONTAL RESPONSE**: clip velocity against the wall, add `0.3·normal` bounce bias, normalize, then preserve horizontal speed with a minimum of `(walkSpeed + maxSpeed)/2`—`240 u/s` at defaults.
+- **VERTICAL RESPONSE**: set `v.z = max(old v.z, 330·gravityScale)`, clear dash, and temporarily suppress normal air-control handling (`gs_pmove.cpp:1343`).
 
 ## Minimal implementation surface
 
@@ -111,8 +144,10 @@ aircontrolK(fmove, smove)        # 0 ⇒ R off (VQ3); >0 ⇒ CPM/QC
 groundFrictionCoef(state)        # ~0 while sliding
 groundControlFloor(state)        # VQ3 100; Warsow classic 12
 groundAccelCoef(state)           # VQ3 10; Warsow classic 12
-slideActive(state)               # crouch+grounded+speed predicate
+slideActive(state)               # mode-defined; Warsow arms airborne for landing
 jumpRequested(input, autojump)   # just-pressed normally; held with autojump
+verticalJumpResponse(state)      # reset in VQ3; add on Warsow's grounded upslope window
+wallJumpResponse(contact, state) # optional contact-triggered velocity redirect
 ```
 
 Switching VQ3 ↔ CPMA ↔ QC ↔ slide = swapping this struct. No branches in the mover.

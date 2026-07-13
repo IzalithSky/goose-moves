@@ -24,6 +24,7 @@ func step() -> void:
 	_menu_entry_buttons()
 	_movement_mode_option()
 	_autojump_option()
+	_crouch_slide_option()
 	_settings_presets()
 	_numeric_text_validation()
 	_controller_specific_keybindings()
@@ -202,6 +203,23 @@ func _autojump_option() -> void:
 	Settings.set_controller_setting("auto_jump", 0.0, Settings.CHARACTER_Q3)
 
 
+func _crouch_slide_option() -> void:
+	Settings.set_character_controller(Settings.CHARACTER_Q3)
+	var menu := SETTINGS_MENU_SCENE.instantiate()
+	add_child(menu)
+	menu.sync_from_settings()
+	var control_data := menu.controller_controls["crouch_slide"] as Dictionary
+	var toggle := control_data["toggle"] as CheckButton
+	check("crouch slide uses a profile toggle", not toggle.button_pressed)
+	menu.on_controller_toggle_changed(true, "crouch_slide")
+	check_approx("crouch slide profile toggle enables sliding",
+		Settings.get_controller_setting("crouch_slide", Settings.CHARACTER_Q3), 1.0)
+	check("live Q3 controller receives crouch slide setting",
+		(level.active_character as Q3CharacterController).crouch_slide_enabled)
+	menu.queue_free()
+	Settings.set_controller_setting("crouch_slide", 0.0, Settings.CHARACTER_Q3)
+
+
 func _settings_presets() -> void:
 	Settings.set_character_controller(Settings.CHARACTER_Q3)
 	var default_entry := _find_preset(Settings.SOURCE_BUILTIN, Settings.DEFAULT_PRESET_ID)
@@ -314,6 +332,7 @@ func _input_map_has_key(action: String, keycode: Key) -> bool:
 func _reset_touched_controller_settings() -> void:
 	Settings.set_controller_setting("movement_mode", Q3CharacterController.MovementMode.VQ3, Settings.CHARACTER_Q3)
 	Settings.set_controller_setting("auto_jump", 0.0, Settings.CHARACTER_Q3)
+	Settings.set_controller_setting("crouch_slide", 0.0, Settings.CHARACTER_Q3)
 	Settings.set_controller_setting("move_speed", 320.0 * 0.3048 / 8.0, Settings.CHARACTER_Q3)
 	Settings.set_controller_setting("fov", Settings.DEFAULT_FOV, Settings.CHARACTER_Q3)
 	Settings.set_controller_setting("fov", Settings.DEFAULT_FOV, Settings.CHARACTER_SPECTATOR)

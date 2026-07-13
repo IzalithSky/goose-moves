@@ -48,6 +48,11 @@ const WARSOW_STOP_SPEED := 12.0
 const WARSOW_STRAFE_ACCELERATION := 70.0
 const WARSOW_STRAFE_WISH_SPEED := 30.0
 const WARSOW_AIR_CONTROL := 150.0
+const WARSOW_CROUCH_SLIDE_DURATION := 1.5
+const WARSOW_CROUCH_SLIDE_FADE := 0.5
+const WARSOW_CROUCH_SLIDE_COOLDOWN := 0.7
+const WARSOW_CROUCH_SLIDE_CONTROL := 3.0
+const WARSOW_WALK_SPEED := 160.0
 
 enum MovementMode {
 	VQ3,
@@ -57,6 +62,7 @@ enum MovementMode {
 # Runtime values; overwritten from Settings in _ready and on settings_changed.
 var movement_mode := MovementMode.VQ3
 var auto_jump := false
+var crouch_slide_enabled := false
 var move_speed := Q3_SPEED * Q3_METERS_PER_UNIT
 var ground_acceleration := Q3_GROUND_ACCELERATION
 var air_acceleration := Q3_AIR_ACCELERATION
@@ -83,6 +89,8 @@ var pitch := 0.0
 var yaw := 0.0
 var floor_is_slick := false
 var is_crouching := false
+var is_crouch_sliding := false
+var crouch_slide_time_remaining := 0.0
 var body_shape: BoxShape3D
 var water_level := 0
 var water_type: StringName
@@ -138,6 +146,7 @@ func _physics_process(delta: float) -> void:
 				apply_floor_snap()
 	var slick := grounded and floor_is_slick
 	var movement_input := _get_movement_input()
+	_update_crouch_slide(delta, grounded)
 	if water_jump_time_remaining > 0.0:
 		_water_jump_move(delta)
 		return
@@ -163,7 +172,10 @@ func _physics_process(delta: float) -> void:
 	_apply_friction(delta, grounded and not slick)
 	var airborne_end_velocity_y := 0.0
 	if grounded:
-		_accelerate(wish_direction, wish_speed, air_acceleration if slick else _get_ground_acceleration(), delta)
+		if is_crouch_sliding and not slick:
+			_crouch_slide_accelerate(wish_direction, wish_speed, _get_ground_acceleration(), delta)
+		else:
+			_accelerate(wish_direction, wish_speed, air_acceleration if slick else _get_ground_acceleration(), delta)
 		if slick:
 			if not floor_normal.is_equal_approx(Vector3.UP):
 				velocity.y -= gravity * delta
@@ -230,6 +242,32 @@ func _jump_requested() -> bool:
 	if auto_jump:
 		return Input.is_action_pressed("player_jump")
 	return Input.is_action_just_pressed("player_jump")
+
+
+func _update_crouch_slide(delta: float, grounded: bool) -> void:
+	if not crouch_slide_enabled:
+		is_crouch_sliding = false
+		crouch_slide_time_remaining = 0.0
+		return
+
+	if crouch_slide_time_remaining > 0.0:
+		crouch_slide_time_remaining -= delta
+		if crouch_slide_time_remaining <= 0.0:
+			crouch_slide_time_remaining = WARSOW_CROUCH_SLIDE_COOLDOWN if is_crouch_sliding else 0.0
+			is_crouch_sliding = false
+
+	var horizontal_speed := Vector2(velocity.x, velocity.z).length()
+	var can_slide := (
+		_get_vertical_input() < 0.0
+		and horizontal_speed > WARSOW_WALK_SPEED * Q3_METERS_PER_UNIT
+	)
+	if can_slide:
+		if crouch_slide_time_remaining > 0.0 or grounded:
+			return
+		is_crouch_sliding = true
+		crouch_slide_time_remaining = WARSOW_CROUCH_SLIDE_DURATION + WARSOW_CROUCH_SLIDE_FADE
+	elif is_crouch_sliding:
+		crouch_slide_time_remaining = minf(crouch_slide_time_remaining, WARSOW_CROUCH_SLIDE_FADE)
 
 
 func _update_crouch_state() -> void:
@@ -383,7 +421,7 @@ func _get_current_acceleration() -> float:
 	if water_level > 1:
 		return water_acceleration
 	if is_on_floor() and not floor_is_slick:
-		return _get_ground_acceleration()
+		return _get_ground_acceleration() * (WARSOW_CROUCH_SLIDE_CONTROL if is_crouch_sliding else 1.0)
 	var movement_input := _get_movement_input()
 	var wish_direction := _get_wish_direction(movement_input, Vector3.UP)
 	return _get_air_acceleration(wish_direction, movement_input)
@@ -394,7 +432,13 @@ func _get_ground_acceleration() -> float:
 
 
 func _get_ground_friction() -> float:
-	return WARSOW_FRICTION if movement_mode == MovementMode.WARSOW_CLASSIC else friction
+	var ground_friction := WARSOW_FRICTION if movement_mode == MovementMode.WARSOW_CLASSIC else friction
+	if not crouch_slide_enabled or not is_crouch_sliding:
+		return ground_friction
+	if crouch_slide_time_remaining >= WARSOW_CROUCH_SLIDE_FADE:
+		return 0.0
+	var fade_fraction := maxf(crouch_slide_time_remaining, 0.0) / WARSOW_CROUCH_SLIDE_FADE
+	return ground_friction * (1.0 - sqrt(fade_fraction))
 
 
 func _get_ground_stop_speed() -> float:
@@ -450,6 +494,14 @@ func _accelerate(wish_direction: Vector3, wish_speed: float, acceleration: float
 
 	var acceleration_speed := minf(acceleration * delta * wish_speed, add_speed)
 	velocity += wish_direction * acceleration_speed
+
+
+func _crouch_slide_accelerate(wish_direction: Vector3, wish_speed: float, acceleration: float, delta: float) -> void:
+	var entry_speed := velocity.length()
+	_accelerate(wish_direction, wish_speed, acceleration * WARSOW_CROUCH_SLIDE_CONTROL, delta)
+	var new_speed := velocity.length()
+	if new_speed > wish_speed and new_speed > 0.0:
+		velocity *= maxf(wish_speed, entry_speed) / new_speed
 
 
 func _air_move(wish_direction: Vector3, wish_speed: float, movement_input: Vector2, delta: float) -> void:
@@ -589,6 +641,10 @@ func on_settings_changed() -> void:
 func _apply_controller_settings() -> void:
 	movement_mode = roundi(Settings.get_controller_setting("movement_mode", Settings.CHARACTER_Q3))
 	auto_jump = Settings.get_controller_setting("auto_jump", Settings.CHARACTER_Q3) >= 0.5
+	crouch_slide_enabled = Settings.get_controller_setting("crouch_slide", Settings.CHARACTER_Q3) >= 0.5
+	if not crouch_slide_enabled:
+		is_crouch_sliding = false
+		crouch_slide_time_remaining = 0.0
 	move_speed = Settings.get_controller_setting("move_speed", Settings.CHARACTER_Q3)
 	ground_acceleration = Settings.get_controller_setting("ground_acceleration", Settings.CHARACTER_Q3)
 	air_acceleration = Settings.get_controller_setting("air_acceleration", Settings.CHARACTER_Q3)

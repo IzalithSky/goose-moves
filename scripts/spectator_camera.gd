@@ -1,7 +1,8 @@
 extends Camera3D
 
-@export var move_speed := 12.0
-@export var mouse_sensitivity := 0.003
+# Runtime values; overwritten from Settings in _ready and on settings_changed.
+var move_speed := 12.0
+var mouse_sensitivity := 0.003
 
 var pitch := 0.0
 var yaw := 0.0

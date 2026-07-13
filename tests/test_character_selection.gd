@@ -170,7 +170,7 @@ func _settings_presets() -> void:
 
 	Settings.set_controller_setting("move_speed", 13.0, Settings.CHARACTER_Q3)
 	KeybindingsSettings.set_binding("player_jump", 0, KEY_J)
-	check("default preset applies", Settings.apply_preset(default_payload))
+	check("default preset applies", Settings.apply_preset_entry(Settings.SOURCE_BUILTIN, Settings.DEFAULT_PRESET_ID))
 	check_approx("default preset restores Q3 move speed",
 		Settings.get_controller_setting("move_speed", Settings.CHARACTER_Q3), 320.0 * 0.3048 / 8.0)
 	check("default preset restores Q3 keybindings",
@@ -185,7 +185,7 @@ func _settings_presets() -> void:
 	KeybindingsSettings.set_binding("player_jump", 0, KEY_U)
 	var user_payload := Settings.load_preset(saved_entry["source"], saved_entry["id"])
 	check("user settings preset loads", not user_payload.is_empty())
-	check("user settings preset applies", Settings.apply_preset(user_payload))
+	check("user settings preset applies", Settings.apply_preset_entry(saved_entry["source"], saved_entry["id"]))
 	check_approx("user preset restores saved Q3 move speed",
 		Settings.get_controller_setting("move_speed", Settings.CHARACTER_Q3), 17.0)
 	check("user preset restores saved Q3 keybindings",
@@ -224,8 +224,10 @@ func _settings_presets() -> void:
 			is_equal_approx(float((overwritten_payload["settings"] as Dictionary)["move_speed"]), 18.0))
 		Settings.set_controller_setting("move_speed", 19.0, Settings.CHARACTER_Q3)
 		Settings.load_settings()
-		check_approx("selected user preset reapplies on settings load",
-			Settings.get_controller_setting("move_speed", Settings.CHARACTER_Q3), 18.0)
+		check_approx("controller settings persist across settings reload",
+			Settings.get_controller_setting("move_speed", Settings.CHARACTER_Q3), 19.0)
+		check("selected preset persists across settings reload",
+			Settings.get_selected_preset().get("id", "") == saved_entry["id"])
 		check("user preset delete is enabled for user entries", not menu.delete_preset_button.disabled)
 		menu.on_delete_preset_pressed()
 		check("delete asks for confirmation",

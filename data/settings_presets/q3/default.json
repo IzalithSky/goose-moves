@@ -1,8 +1,6 @@
 {
 	"version": 1,
 	"name": "Default",
-	"source": "builtin",
-	"id": "default",
 	"controller": "q3",
 	"settings": {
 		"fov": 100.0,

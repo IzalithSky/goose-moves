@@ -4,7 +4,6 @@ signal bindings_changed
 signal actions_changed
 
 const SAVE_PATH := "user://keybindings.cfg"
-const SECTION := "bindings"
 const MAX_BINDINGS := 2
 const CHARACTER_Q3 := "q3"
 const CHARACTER_SPECTATOR := "spectator"
@@ -28,15 +27,6 @@ const SPECTATOR_ACTIONS: Array[String] = [
 	"player_right",
 	"player_jump",
 	"player_crouch",
-]
-const ALL_ACTIONS: Array[String] = [
-	"player_forward",
-	"player_back",
-	"player_left",
-	"player_right",
-	"player_jump",
-	"player_crouch",
-	"player_walk",
 ]
 const Q3_ACTION_LABELS := {
 	"player_forward": "Move Forward",
@@ -77,50 +67,39 @@ func _ready() -> void:
 
 
 func get_actions(controller_id := "") -> Array[String]:
-	var normalized_controller := _normalize_controller(active_controller_id if controller_id.is_empty() else controller_id)
-	if normalized_controller == CHARACTER_SPECTATOR:
+	if _resolve_controller(controller_id) == CHARACTER_SPECTATOR:
 		return SPECTATOR_ACTIONS.duplicate()
 	return Q3_ACTIONS.duplicate()
 
 
 func get_action_label(action: String, controller_id := "") -> String:
-	var normalized_controller := _normalize_controller(active_controller_id if controller_id.is_empty() else controller_id)
-	if normalized_controller == CHARACTER_SPECTATOR:
+	if _resolve_controller(controller_id) == CHARACTER_SPECTATOR:
 		return str(SPECTATOR_ACTION_LABELS.get(action, action))
 	return str(Q3_ACTION_LABELS.get(action, action))
 
 
 func get_bindings(action: String, controller_id := "") -> Array:
-	var normalized_controller := _normalize_controller(active_controller_id if controller_id.is_empty() else controller_id)
-	var bindings := bindings_by_controller.get(normalized_controller, {}) as Dictionary
+	var bindings := bindings_by_controller.get(_resolve_controller(controller_id), {}) as Dictionary
 	return (bindings.get(action, [-1, -1]) as Array).duplicate(true)
 
 
 func get_bindings_payload(controller_id := "") -> Dictionary:
-	var normalized_controller := _normalize_controller(active_controller_id if controller_id.is_empty() else controller_id)
+	var controller := _resolve_controller(controller_id)
 	var payload := {}
-	for action in get_actions(normalized_controller):
-		payload[action] = get_bindings(action, normalized_controller)
+	for action in get_actions(controller):
+		payload[action] = get_bindings(action, controller)
 	return payload
 
 
 func apply_bindings_payload(payload: Dictionary, controller_id := "") -> void:
-	var normalized_controller := _normalize_controller(active_controller_id if controller_id.is_empty() else controller_id)
-	if not bindings_by_controller.has(normalized_controller):
-		reset_to_defaults(false)
-	var bindings := bindings_by_controller[normalized_controller] as Dictionary
-	for action in get_actions(normalized_controller):
+	var controller := _resolve_controller(controller_id)
+	var bindings := bindings_by_controller[controller] as Dictionary
+	for action in get_actions(controller):
 		if not payload.has(action):
 			continue
-		var saved: Variant = payload[action]
-		if saved is Array:
-			var saved_slots := saved as Array
-			var slots: Array = [-1, -1]
-			for slot in mini(saved_slots.size(), MAX_BINDINGS):
-				slots[slot] = _normalize_binding(saved_slots[slot])
+		var slots := _parse_saved_slots(payload[action])
+		if not slots.is_empty():
 			bindings[action] = slots
-		elif saved is int:
-			bindings[action] = [_normalize_binding(saved), -1]
 	apply_to_input_map()
 	save_bindings()
 	bindings_changed.emit()
@@ -170,9 +149,6 @@ func load_bindings() -> void:
 	var config := ConfigFile.new()
 	if config.load(SAVE_PATH) != OK:
 		return
-
-	if config.has_section(SECTION):
-		_load_controller_bindings(config, SECTION, CHARACTER_Q3)
 	for controller_id in SECTIONS:
 		_load_controller_bindings(config, str(SECTIONS[controller_id]), controller_id)
 
@@ -189,7 +165,11 @@ func save_bindings() -> void:
 
 
 func apply_to_input_map() -> void:
-	for action in ALL_ACTIONS:
+	var managed_actions := {}
+	for controller_id in SECTIONS:
+		for action in get_actions(controller_id):
+			managed_actions[action] = true
+	for action in managed_actions:
 		if not InputMap.has_action(action):
 			push_warning("Input action missing from project settings: %s" % action)
 			continue
@@ -235,6 +215,18 @@ func _binding_to_input_event(binding: Variant) -> InputEvent:
 	return null
 
 
+func _parse_saved_slots(saved: Variant) -> Array:
+	if saved is Array:
+		var saved_slots := saved as Array
+		var slots: Array = [-1, -1]
+		for slot in mini(saved_slots.size(), MAX_BINDINGS):
+			slots[slot] = _normalize_binding(saved_slots[slot])
+		return slots
+	if saved is int:
+		return [_normalize_binding(saved), -1]
+	return []
+
+
 func _load_controller_bindings(config: ConfigFile, section: String, controller_id: String) -> void:
 	if not config.has_section(section):
 		return
@@ -242,18 +234,16 @@ func _load_controller_bindings(config: ConfigFile, section: String, controller_i
 	for action in get_actions(controller_id):
 		if not config.has_section_key(section, action):
 			continue
-		var saved: Variant = config.get_value(section, action)
-		if saved is Array:
-			var saved_slots := saved as Array
-			var slots: Array = [-1, -1]
-			for slot in mini(saved_slots.size(), MAX_BINDINGS):
-				slots[slot] = _normalize_binding(saved_slots[slot])
+		var slots := _parse_saved_slots(config.get_value(section, action))
+		if not slots.is_empty():
 			bindings[action] = slots
-		elif saved is int:
-			bindings[action] = [_normalize_binding(saved), -1]
 
 
 func _normalize_controller(value: String) -> String:
 	if value == CHARACTER_SPECTATOR:
 		return CHARACTER_SPECTATOR
 	return CHARACTER_Q3
+
+
+func _resolve_controller(controller_id: String) -> String:
+	return _normalize_controller(active_controller_id if controller_id.is_empty() else controller_id)

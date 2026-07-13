@@ -6,6 +6,9 @@ const Q3_UNITS_PER_FOOT := 8.0
 const METERS_PER_FOOT := 0.3048
 const Q3_METERS_PER_UNIT := METERS_PER_FOOT / Q3_UNITS_PER_FOOT
 const Q3_SPEED := 320.0
+const Q3_GROUND_ACCELERATION := 10.0
+const Q3_AIR_ACCELERATION := 1.0
+const Q3_FRICTION := 6.0
 const Q3_GRAVITY := 800.0
 const Q3_JUMP_VELOCITY := 270.0
 const Q3_STOP_SPEED := 100.0
@@ -38,29 +41,23 @@ const Q3_WATER_JUMP_FORWARD_VELOCITY := 200.0 * Q3_METERS_PER_UNIT
 const Q3_WATER_JUMP_VELOCITY := 350.0 * Q3_METERS_PER_UNIT
 const Q3_WATER_JUMP_DURATION := 2.0
 
-@export_category("VQ3 Movement")
-@export var move_speed := Q3_SPEED * Q3_METERS_PER_UNIT
-@export var ground_acceleration := 10.0
-@export var air_acceleration := 1.0
-@export var friction := 6.0
-@export var stop_speed := Q3_STOP_SPEED * Q3_METERS_PER_UNIT
-@export var gravity := Q3_GRAVITY * Q3_METERS_PER_UNIT
-@export var jump_velocity := Q3_JUMP_VELOCITY * Q3_METERS_PER_UNIT
-@export var step_height := Q3_STEP_HEIGHT * Q3_METERS_PER_UNIT
-@export_range(0.0, 89.0, 0.1, "degrees") var max_slope_angle := Q3_MAX_SLOPE_ANGLE
-
-@export_category("VQ3 Stance")
-@export var crouch_speed_scale := Q3_CROUCH_SPEED_SCALE
-@export var walk_speed_scale := Q3_WALK_COMMAND / Q3_RUN_COMMAND
-
-@export_category("VQ3 Water")
-@export var swim_speed_scale := Q3_SWIM_SCALE
-@export var water_acceleration := Q3_WATER_ACCELERATION
-@export var water_friction := Q3_WATER_FRICTION
-@export var slime_friction := Q3_SLIME_FRICTION
-
-@export_category("View")
-@export var mouse_sensitivity := 0.003
+# Runtime values; overwritten from Settings in _ready and on settings_changed.
+var move_speed := Q3_SPEED * Q3_METERS_PER_UNIT
+var ground_acceleration := Q3_GROUND_ACCELERATION
+var air_acceleration := Q3_AIR_ACCELERATION
+var friction := Q3_FRICTION
+var stop_speed := Q3_STOP_SPEED * Q3_METERS_PER_UNIT
+var gravity := Q3_GRAVITY * Q3_METERS_PER_UNIT
+var jump_velocity := Q3_JUMP_VELOCITY * Q3_METERS_PER_UNIT
+var step_height := Q3_STEP_HEIGHT * Q3_METERS_PER_UNIT
+var max_slope_angle := Q3_MAX_SLOPE_ANGLE
+var crouch_speed_scale := Q3_CROUCH_SPEED_SCALE
+var walk_speed_scale := Q3_WALK_COMMAND / Q3_RUN_COMMAND
+var swim_speed_scale := Q3_SWIM_SCALE
+var water_acceleration := Q3_WATER_ACCELERATION
+var water_friction := Q3_WATER_FRICTION
+var slime_friction := Q3_SLIME_FRICTION
+var mouse_sensitivity := 0.003
 
 @onready var head: Node3D = $Head
 @onready var camera: Camera3D = $Head/Camera3D

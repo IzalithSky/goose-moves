@@ -26,10 +26,10 @@ var pending_delete_entry := {}
 
 
 func _ready() -> void:
-	character_option.add_item("Q3", 0)
-	character_option.set_item_metadata(0, Settings.CHARACTER_Q3)
-	character_option.add_item("Spectator", 1)
-	character_option.set_item_metadata(1, Settings.CHARACTER_SPECTATOR)
+	for controller_id in Settings.CONTROLLER_LABELS:
+		var index := character_option.item_count
+		character_option.add_item(Settings.get_character_label(controller_id))
+		character_option.set_item_metadata(index, controller_id)
 	character_option.item_selected.connect(on_character_selected)
 	preset_option.item_selected.connect(on_preset_selected)
 	save_preset_button.pressed.connect(on_save_preset_pressed)
@@ -153,7 +153,6 @@ func populate_preset_options(select_entry := {}) -> void:
 		var entry := selected_preset_entry()
 		delete_preset_button.disabled = entry.get("source", "") != Settings.SOURCE_USER
 	else:
-		save_preset_button.disabled = true
 		delete_preset_button.disabled = true
 
 
@@ -251,7 +250,7 @@ func on_delete_preset_confirmed() -> void:
 		return
 	status_label.text = "Deleted preset: %s" % pending_delete_entry["name"]
 	pending_delete_entry = {}
-	populate_preset_options()
+	populate_preset_options(Settings.get_selected_preset())
 
 
 func _save_user_preset(preset_name: String) -> void:
@@ -276,12 +275,11 @@ func on_back_pressed() -> void:
 
 
 func _format_controller_value(value: float, def: Dictionary) -> String:
-	return str(def["format"]) % value
+	return str(def["format"]) % value + str(def.get("suffix", ""))
 
 
 func _format_plain_number(value: float, def: Dictionary) -> String:
-	var format := str(def["format"]).replace("°", "")
-	return format % value
+	return str(def["format"]) % value
 
 
 func _commit_controller_text(key: String, line_edit: LineEdit, text: String) -> void:

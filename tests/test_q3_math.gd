@@ -20,6 +20,7 @@ func step() -> void:
 	_constants()
 	_friction()
 	_accelerate()
+	_warsow_classic()
 	_projection()
 	_wish_speed()
 	finish()
@@ -118,6 +119,42 @@ func _accelerate() -> void:
 	c._accelerate(Vector3(1, 0, 0), wish_speed, 1.0, DT)
 	check_approx("cap is on dot(v, wishdir), not |v| — the strafe-jump property",
 		c.velocity.x, 1.0 * DT * wish_speed)
+
+
+func _warsow_classic() -> void:
+	c.movement_mode = c.MovementMode.WARSOW_CLASSIC
+	check_approx("Warsow ground acceleration = 12", c._get_ground_acceleration(), 12.0)
+	check_approx("Warsow friction = 8", c._get_ground_friction(), 8.0)
+	check_approx("Warsow control floor = 12 u/s", c._get_ground_stop_speed(), 12.0 * U)
+
+	c.water_level = 0
+	c.velocity = Vector3(0.2, 0, 0)
+	c._apply_friction(DT, true)
+	check_approx("Warsow friction uses its 12 u/s control floor",
+		c.velocity.x, 0.2 - (12.0 * U * 8.0 * DT))
+
+	c.velocity = Vector3(-5, 0, 0)
+	c._air_move(Vector3.RIGHT, c.move_speed, Vector2(0, 1), DT)
+	check_approx("Warsow braking uses air acceleration 2",
+		c.velocity.x, -5.0 + (2.0 * DT * c.move_speed))
+
+	c.velocity = Vector3.ZERO
+	c._air_move(Vector3.RIGHT, c.move_speed, Vector2(1, 0), DT)
+	check_approx("Warsow strafe-only branch caps wishspeed at 30 u/s",
+		c.velocity.x, 30.0 * U)
+
+	c.velocity = Vector3(10, 3, 0)
+	var horizontal_speed := Vector2(c.velocity.x, c.velocity.z).length()
+	c._apply_air_control(Vector3(1, 0, -1).normalized(), Vector2(0, 1), DT)
+	check_approx("Warsow air control preserves horizontal speed",
+		Vector2(c.velocity.x, c.velocity.z).length(), horizontal_speed)
+	check_approx("Warsow air control preserves vertical speed", c.velocity.y, 3.0)
+	check("Warsow air control rotates toward wish direction", c.velocity.z < 0.0)
+
+	var controlled_velocity: Vector3 = c.velocity
+	c._apply_air_control(Vector3.RIGHT, Vector2(1, 1), DT)
+	check_vec3("Warsow air control rejects side input", c.velocity, controlled_velocity)
+	c.movement_mode = c.MovementMode.VQ3
 
 
 func _projection() -> void:

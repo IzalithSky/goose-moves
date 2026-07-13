@@ -40,8 +40,22 @@ const Q3_WATER_JUMP_CLEARANCE := 16.0 * Q3_METERS_PER_UNIT
 const Q3_WATER_JUMP_FORWARD_VELOCITY := 200.0 * Q3_METERS_PER_UNIT
 const Q3_WATER_JUMP_VELOCITY := 350.0 * Q3_METERS_PER_UNIT
 const Q3_WATER_JUMP_DURATION := 2.0
+const WARSOW_GROUND_ACCELERATION := 12.0
+const WARSOW_AIR_ACCELERATION := 1.0
+const WARSOW_AIR_DECELERATION := 2.0
+const WARSOW_FRICTION := 8.0
+const WARSOW_STOP_SPEED := 12.0
+const WARSOW_STRAFE_ACCELERATION := 70.0
+const WARSOW_STRAFE_WISH_SPEED := 30.0
+const WARSOW_AIR_CONTROL := 150.0
+
+enum MovementMode {
+	VQ3,
+	WARSOW_CLASSIC,
+}
 
 # Runtime values; overwritten from Settings in _ready and on settings_changed.
+var movement_mode := MovementMode.VQ3
 var move_speed := Q3_SPEED * Q3_METERS_PER_UNIT
 var ground_acceleration := Q3_GROUND_ACCELERATION
 var air_acceleration := Q3_AIR_ACCELERATION
@@ -148,13 +162,13 @@ func _physics_process(delta: float) -> void:
 	_apply_friction(delta, grounded and not slick)
 	var airborne_end_velocity_y := 0.0
 	if grounded:
-		_accelerate(wish_direction, wish_speed, air_acceleration if slick else ground_acceleration, delta)
+		_accelerate(wish_direction, wish_speed, air_acceleration if slick else _get_ground_acceleration(), delta)
 		if slick:
 			if not floor_normal.is_equal_approx(Vector3.UP):
 				velocity.y -= gravity * delta
 		_project_velocity_onto_plane(floor_normal)
 	else:
-		_accelerate(wish_direction, wish_speed, air_acceleration, delta)
+		_air_move(wish_direction, wish_speed, movement_input, delta)
 		airborne_end_velocity_y = velocity.y - (gravity * delta)
 		velocity.y = (velocity.y + airborne_end_velocity_y) * 0.5
 
@@ -352,7 +366,7 @@ func _get_current_friction_coefficient() -> float:
 
 	var current_friction := _get_volume_friction() * water_level
 	if water_level <= 1 and is_on_floor() and not floor_is_slick:
-		current_friction += friction
+		current_friction += _get_ground_friction()
 	return current_friction
 
 
@@ -362,8 +376,36 @@ func _get_current_acceleration() -> float:
 	if water_level > 1:
 		return water_acceleration
 	if is_on_floor() and not floor_is_slick:
-		return ground_acceleration
-	return air_acceleration
+		return _get_ground_acceleration()
+	var movement_input := _get_movement_input()
+	var wish_direction := _get_wish_direction(movement_input, Vector3.UP)
+	return _get_air_acceleration(wish_direction, movement_input)
+
+
+func _get_ground_acceleration() -> float:
+	return WARSOW_GROUND_ACCELERATION if movement_mode == MovementMode.WARSOW_CLASSIC else ground_acceleration
+
+
+func _get_ground_friction() -> float:
+	return WARSOW_FRICTION if movement_mode == MovementMode.WARSOW_CLASSIC else friction
+
+
+func _get_ground_stop_speed() -> float:
+	if movement_mode == MovementMode.WARSOW_CLASSIC:
+		return WARSOW_STOP_SPEED * Q3_METERS_PER_UNIT
+	return stop_speed
+
+
+func _get_air_acceleration(wish_direction: Vector3, movement_input: Vector2) -> float:
+	if movement_mode != MovementMode.WARSOW_CLASSIC:
+		return air_acceleration
+
+	var acceleration := WARSOW_AIR_ACCELERATION
+	if not wish_direction.is_zero_approx() and velocity.dot(wish_direction) < 0.0:
+		acceleration = WARSOW_AIR_DECELERATION
+	if not is_zero_approx(movement_input.x) and is_zero_approx(movement_input.y):
+		acceleration = WARSOW_STRAFE_ACCELERATION
+	return acceleration
 
 
 func _get_volume_friction() -> float:
@@ -380,7 +422,7 @@ func _apply_friction(delta: float, apply_ground_friction: bool) -> void:
 
 	var drop := 0.0
 	if apply_ground_friction:
-		drop += maxf(speed, stop_speed) * friction * delta
+		drop += maxf(speed, _get_ground_stop_speed()) * _get_ground_friction() * delta
 	if water_level > 0:
 		drop += speed * _get_volume_friction() * water_level * delta
 	if drop <= 0.0:
@@ -401,6 +443,53 @@ func _accelerate(wish_direction: Vector3, wish_speed: float, acceleration: float
 
 	var acceleration_speed := minf(acceleration * delta * wish_speed, add_speed)
 	velocity += wish_direction * acceleration_speed
+
+
+func _air_move(wish_direction: Vector3, wish_speed: float, movement_input: Vector2, delta: float) -> void:
+	var capped_wish_speed := wish_speed
+	if (
+		movement_mode == MovementMode.WARSOW_CLASSIC
+		and not is_zero_approx(movement_input.x)
+		and is_zero_approx(movement_input.y)
+	):
+		capped_wish_speed = minf(capped_wish_speed, WARSOW_STRAFE_WISH_SPEED * Q3_METERS_PER_UNIT)
+	_accelerate(wish_direction, capped_wish_speed, _get_air_acceleration(wish_direction, movement_input), delta)
+	_apply_air_control(wish_direction, movement_input, delta)
+
+
+func _apply_air_control(wish_direction: Vector3, movement_input: Vector2, delta: float) -> void:
+	if (
+		movement_mode != MovementMode.WARSOW_CLASSIC
+		or not is_zero_approx(movement_input.x)
+		or is_zero_approx(movement_input.y)
+	):
+		return
+
+	var horizontal_velocity := velocity
+	horizontal_velocity.y = 0.0
+	var speed := horizontal_velocity.length()
+	if speed <= 0.0:
+		return
+
+	var velocity_direction := horizontal_velocity / speed
+	var alignment := velocity_direction.dot(wish_direction)
+	if alignment <= 0.0:
+		return
+
+	var control_speed := (
+		32.0
+		* Q3_METERS_PER_UNIT
+		* WARSOW_AIR_CONTROL
+		* alignment
+		* alignment
+		* delta
+	)
+	var controlled_direction := (velocity_direction * speed) + (wish_direction * control_speed)
+	if controlled_direction.is_zero_approx():
+		return
+	controlled_direction = controlled_direction.normalized() * speed
+	velocity.x = controlled_direction.x
+	velocity.z = controlled_direction.z
 
 
 func _project_velocity_onto_plane(plane_normal: Vector3, speed: float = -1.0) -> void:
@@ -491,6 +580,7 @@ func on_settings_changed() -> void:
 
 
 func _apply_controller_settings() -> void:
+	movement_mode = roundi(Settings.get_controller_setting("movement_mode", Settings.CHARACTER_Q3))
 	move_speed = Settings.get_controller_setting("move_speed", Settings.CHARACTER_Q3)
 	ground_acceleration = Settings.get_controller_setting("ground_acceleration", Settings.CHARACTER_Q3)
 	air_acceleration = Settings.get_controller_setting("air_acceleration", Settings.CHARACTER_Q3)

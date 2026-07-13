@@ -100,7 +100,27 @@ func build_controller_settings() -> void:
 
 		var key := str(def["key"])
 		var value := Settings.get_controller_setting(key)
-		if str(def.get("control", "text")) == "slider":
+		var control_type := str(def.get("control", "text"))
+		if control_type == "option":
+			var option_button := OptionButton.new()
+			option_button.custom_minimum_size = Vector2(180.0, 0.0)
+			option_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			var selected_index := 0
+			for option_def in def.get("options", []):
+				var option_index := option_button.item_count
+				option_button.add_item(str(option_def["label"]))
+				var option_value := float(option_def["value"])
+				option_button.set_item_metadata(option_index, option_value)
+				if is_equal_approx(option_value, value):
+					selected_index = option_index
+			option_button.select(selected_index)
+			option_button.item_selected.connect(on_controller_option_selected.bind(key, option_button))
+			row.add_child(option_button)
+			controller_controls[key] = {
+				"option": option_button,
+				"def": def,
+			}
+		elif control_type == "slider":
 			var slider := HSlider.new()
 			slider.custom_minimum_size = Vector2(180.0, 0.0)
 			slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -169,6 +189,10 @@ func on_controller_slider_changed(value: float, key: String) -> void:
 	if not label_data.is_empty():
 		(label_data["label"] as Label).text = _format_controller_value(value, label_data["def"] as Dictionary)
 	Settings.set_controller_setting(key, value)
+
+
+func on_controller_option_selected(index: int, key: String, option_button: OptionButton) -> void:
+	Settings.set_controller_setting(key, float(option_button.get_item_metadata(index)))
 
 
 func on_controller_text_submitted(text: String, key: String, line_edit: LineEdit) -> void:

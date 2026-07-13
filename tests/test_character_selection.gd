@@ -22,6 +22,7 @@ func step() -> void:
 	_controller_specific_settings()
 	_settings_menu_categories()
 	_menu_entry_buttons()
+	_movement_mode_option()
 	_settings_presets()
 	_numeric_text_validation()
 	_controller_specific_keybindings()
@@ -157,6 +158,32 @@ func _menu_entry_buttons() -> void:
 	pause_menu.queue_free()
 
 
+func _movement_mode_option() -> void:
+	Settings.set_character_controller(Settings.CHARACTER_Q3)
+	var menu := SETTINGS_MENU_SCENE.instantiate()
+	add_child(menu)
+	menu.sync_from_settings()
+	var control_data := menu.controller_controls["movement_mode"] as Dictionary
+	var option_button := control_data["option"] as OptionButton
+	check("movement mode uses a profile dropdown", option_button.item_count == 2)
+	check("movement mode defaults to VQ3", option_button.selected == Q3CharacterController.MovementMode.VQ3)
+	option_button.select(Q3CharacterController.MovementMode.WARSOW_CLASSIC)
+	menu.on_controller_option_selected(
+		option_button.selected,
+		"movement_mode",
+		option_button,
+	)
+	check_approx("movement mode dropdown selects Warsow Classic",
+		Settings.get_controller_setting("movement_mode", Settings.CHARACTER_Q3),
+		Q3CharacterController.MovementMode.WARSOW_CLASSIC)
+	menu.queue_free()
+	Settings.set_controller_setting(
+		"movement_mode",
+		Q3CharacterController.MovementMode.VQ3,
+		Settings.CHARACTER_Q3,
+	)
+
+
 func _settings_presets() -> void:
 	Settings.set_character_controller(Settings.CHARACTER_Q3)
 	var default_entry := _find_preset(Settings.SOURCE_BUILTIN, Settings.DEFAULT_PRESET_ID)
@@ -267,6 +294,7 @@ func _input_map_has_key(action: String, keycode: Key) -> bool:
 
 
 func _reset_touched_controller_settings() -> void:
+	Settings.set_controller_setting("movement_mode", Q3CharacterController.MovementMode.VQ3, Settings.CHARACTER_Q3)
 	Settings.set_controller_setting("move_speed", 320.0 * 0.3048 / 8.0, Settings.CHARACTER_Q3)
 	Settings.set_controller_setting("fov", Settings.DEFAULT_FOV, Settings.CHARACTER_Q3)
 	Settings.set_controller_setting("fov", Settings.DEFAULT_FOV, Settings.CHARACTER_SPECTATOR)

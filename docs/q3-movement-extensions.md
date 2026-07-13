@@ -2,7 +2,7 @@
 
 Extends [q3-movement.md](q3-movement.md). Everything here is framed as **how each mode layers over or replaces a specific VQ3 math piece** — nothing throws the VQ3 core away.
 
-**Confidence:** VQ3 pieces are source-verified (see base doc). CPM's air-control operator and constants are the **Warsow/qfusion-lineage reimplementation** (CPMA itself is closed-source). QC is **behavioral inference** (closed-source; community-reported, patch-sensitive). Slide behavior is from Q4/QC docs + community, not code. Treat CPM/QC numbers as canonical-reimplementation values, not ground truth.
+**Confidence:** VQ3 pieces are source-verified (see base doc). CPM's air-control operator and constants are source-verified against the **Warsow/qfusion `GS_CLASSICBUNNY` reimplementation** at `references/warsow` revision `cc22b709` (CPMA itself is closed-source). QC is **behavioral inference** (closed-source; community-reported, patch-sensitive). Slide behavior is from Q4/QC docs + community, not code. Treat CPM/QC numbers as canonical-reimplementation values, not ground truth.
 
 ## The VQ3 pieces you extend
 
@@ -38,6 +38,8 @@ R(v, ŵ, κ):
 
 `A` changes the vector's length; `R` changes its direction. **VQ3 = `A` only** → weak turning → you make the ŵ–v angle manually with strafe keys. Adding `R` is what unlocks sharp air-steering.
 
+Warsow gates `R` outside the operator: side input must be zero and forward/back input must be nonzero. Thus forward-only **or backward-only** can rotate; forward+strafe and strafe-only cannot. The `d > 0` test additionally prevents rotation while moving against the requested direction (`gs_pmove.cpp:641`).
+
 ## Airborne skeleton (all modes)
 
 ```
@@ -50,16 +52,19 @@ v = R(v, ŵ, KAPPA(fmove, smove))     # LAYERED ON    (VQ3: κ=0 ⇒ no-op)
 
 | knob | **VQ3** ✔ | **CPMA** (reimpl) | **QC** (inferred) |
 |---|---|---|---|
-| `ACCEL` | const `1` | `dot(ŵ,v)<0 → 2.5`; strafe-only `→ 70`; else `1` | same shape, forward-friendly |
+| `ACCEL` | const `1` | `dot(ŵ,v)<0 → 2.0`; strafe-only `→ 70`; else `1` | same shape, forward-friendly |
 | `CAP` | `≤ 320` | strafe-only `→ 30`; else 320 | relaxed so forward-only keeps headroom |
-| `KAPPA` (R) | `0` | `~150` when forward held | `>0`, **active on forward** |
+| `KAPPA` (R) | `0` | `150` when `fmove≠0, smove=0` | `>0`, **active on forward** |
 
 ## CPMA — layer/replace map
 
-- **REPLACE `ACCEL`**: constant → input-conditional — air-stop `2.5` when `dot(ŵ,v)<0`, strafe-accel `70` when strafe-only (`smove≠0, fmove=0`), else `1`.
+Warsow does not call this path "CPM". `GS_CLASSICBUNNY` clears `PMFEAT_FWDBUNNY`; with the default `PMFEAT_AIRCONTROL` still set, that selects the CPM-like branch (`gs_public.h:235`, `client.cpp:1086`, `gs_pmove.cpp:825`). `GS_NEWBUNNY` instead enables Warsow's separate forward-bunny integrator.
+
+- **REPLACE `ACCEL`**: constant → input-conditional — air-stop `2.0` when `dot(ŵ,v)<0`, strafe-accel `70` when strafe-only (`smove≠0, fmove=0`), else `1` (`gs_pmove.cpp:83`).
 - **REPLACE `CAP`**: clamp to `~30` in the strafe-only branch (else 320).
-- **LAYER ON `R`**: run after `A`, gated on forward held, `κ≈150`.
-- **REPLACE friction coefficient**: `6 → ~8` (same `Friction` shape; snappier ground).
+- **LAYER ON `R`**: run after `A`, gated on forward/back-only input, `κ=150`. Any side input makes `R` return immediately (`gs_pmove.cpp:641`).
+- **REPLACE ground acceleration coefficient**: `10 → 12`; the `A` operator itself is unchanged.
+- **REPLACE ground friction parameters**: coefficient `6 → 8` and control floor `100 → 12`. The scale-toward-zero operator is unchanged, but this is not merely a coefficient swap (`gs_pmove.cpp:498`).
 - KEEP everything else.
 
 ## QC — layer/replace map
@@ -89,7 +94,7 @@ So a Slash-style slide is literally *"call the airborne skeleton while `grounded
 
 ## Friction is its own axis
 
-Same `Friction` shape everywhere (scale-toward-zero, stopspeed floor); only the coefficient moves: VQ3 `6` · CPMA `~8` · **slide `~0`**.
+Same `Friction` operator everywhere: `drop = max(speed, controlFloor)·coefficient·dt`, then scale velocity toward zero. Both parameters can move: VQ3 uses coefficient `6`, floor `100`; current Warsow classic movement uses coefficient `8`, floor `12`; a slide drives the coefficient toward `0`.
 
 ## Minimal implementation surface
 
@@ -100,6 +105,8 @@ accel(ŵ, v, fmove, smove)        # replaces VQ3's constant airaccelerate
 wishspeedCap(fmove, smove)       # replaces/relaxes the 320 cap
 aircontrolK(fmove, smove)        # 0 ⇒ R off (VQ3); >0 ⇒ CPM/QC
 groundFrictionCoef(state)        # ~0 while sliding
+groundControlFloor(state)        # VQ3 100; Warsow classic 12
+groundAccelCoef(state)           # VQ3 10; Warsow classic 12
 slideActive(state)               # crouch+grounded+speed predicate
 ```
 
@@ -113,5 +120,6 @@ Switching VQ3 ↔ CPMA ↔ QC ↔ slide = swapping this struct. No branches in t
 | `accel` value | **replace** (3-way) | tune | n/a |
 | `wishspeed` cap | **replace** (30 strafe) | **relax** | **replace** (low) |
 | `R` air-control | **add** (fwd) | **add** (fwd) | add (Slash) |
-| ground `Friction` | replace (coef 8) | tune | **replace** (~0) |
+| ground accel value | **replace** (12) | tune | tune |
+| ground `Friction` | **replace** (coef 8, floor 12) | tune | **replace** (~0 coef) |
 | gravity / slide / step / trace | unchanged | unchanged | +slope-gravity |

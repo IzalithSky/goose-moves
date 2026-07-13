@@ -28,6 +28,10 @@ const CONTROLLER_LABELS := {
 const Q3_SETTING_DEFS: Array[Dictionary] = [
 	{"key": "fov", "label": "Field of view", "default": DEFAULT_FOV, "min": MIN_FOV, "max": MAX_FOV, "step": 1.0, "format": "%.0f", "suffix": "°", "control": "slider"},
 	{"key": "mouse_sensitivity", "label": "Mouse sensitivity", "default": DEFAULT_MOUSE_SENSITIVITY, "min": 0.001, "max": 0.02, "step": 0.001, "format": "%.3f", "control": "slider"},
+	{"key": "movement_mode", "label": "Movement mode", "default": Q3CC.MovementMode.VQ3, "min": Q3CC.MovementMode.VQ3, "max": Q3CC.MovementMode.WARSOW_CLASSIC, "step": 1.0, "control": "option", "options": [
+		{"label": "VQ3 (current)", "value": Q3CC.MovementMode.VQ3},
+		{"label": "Warsow Classic (CPM-like)", "value": Q3CC.MovementMode.WARSOW_CLASSIC},
+	]},
 	{"key": "move_speed", "label": "Move speed", "default": Q3CC.Q3_SPEED * Q3CC.Q3_METERS_PER_UNIT, "min": 0.0, "max": 30.0, "step": 0.1, "format": "%.2f"},
 	{"key": "ground_acceleration", "label": "Ground acceleration", "default": Q3CC.Q3_GROUND_ACCELERATION, "min": 0.0, "max": 40.0, "step": 0.1, "format": "%.1f"},
 	{"key": "air_acceleration", "label": "Air acceleration", "default": Q3CC.Q3_AIR_ACCELERATION, "min": 0.0, "max": 10.0, "step": 0.1, "format": "%.1f"},

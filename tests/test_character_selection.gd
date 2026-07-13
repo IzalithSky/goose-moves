@@ -1,6 +1,8 @@
 extends "res://tests/q3_test.gd"
 
 const LEVEL_SCENE := preload("res://scenes/primitive_test_level.tscn")
+const MAIN_MENU_SCENE := preload("res://scenes/main_menu.tscn")
+const PAUSE_MENU_SCENE := preload("res://scenes/pause_menu.tscn")
 const SETTINGS_MENU_SCENE := preload("res://scenes/settings_menu.tscn")
 
 var level
@@ -18,6 +20,9 @@ func step() -> void:
 	_runtime_swap()
 	_persistence()
 	_controller_specific_settings()
+	_settings_menu_categories()
+	_menu_entry_buttons()
+	_settings_presets()
 	_numeric_text_validation()
 	_controller_specific_keybindings()
 	_reset_touched_controller_settings()
@@ -106,12 +111,138 @@ func _controller_specific_keybindings() -> void:
 		(config.get_value("bindings_spectator", "player_jump", []) as Array)[0] == KEY_U)
 
 
+func _settings_menu_categories() -> void:
+	var menu := SETTINGS_MENU_SCENE.instantiate()
+	add_child(menu)
+	check("settings menu has global category",
+		menu.get_node_or_null("Panel/Margin/VBox/SettingsTabs/Global") != null)
+	check("settings menu has character category",
+		menu.get_node_or_null("Panel/Margin/VBox/SettingsTabs/Character") != null)
+	check("settings menu category tabs are hidden",
+		not menu.settings_tabs.tabs_visible)
+	check("fullscreen is in global settings",
+		menu.fullscreen_toggle.get_parent().name == "Global")
+	check("character selector is in character settings",
+		menu.character_option.get_parent().get_parent().name == "Character")
+	check("key bindings are in character settings",
+		menu.keybindings_button.get_parent().name == "Character")
+	menu.queue_free()
+
+
+func _menu_entry_buttons() -> void:
+	var main_menu := MAIN_MENU_SCENE.instantiate()
+	add_child(main_menu)
+	check("main menu has character settings button",
+		main_menu.get_node_or_null("CenterContainer/MainPanel/Margin/VBox/CharacterSettingsButton") != null)
+	main_menu.on_settings_pressed()
+	check("main settings button opens global settings",
+		main_menu.settings_menu.settings_tabs.current_tab == 0)
+	main_menu.on_settings_back_requested()
+	main_menu.on_character_settings_pressed()
+	check("main character settings button opens character settings",
+		main_menu.settings_menu.settings_tabs.current_tab == 1)
+	main_menu.queue_free()
+
+	var pause_menu := PAUSE_MENU_SCENE.instantiate()
+	add_child(pause_menu)
+	check("pause menu has character settings button",
+		pause_menu.get_node_or_null("MenuRoot/CenterContainer/PausePanel/Margin/VBox/CharacterSettingsButton") != null)
+	pause_menu.on_settings_pressed()
+	check("pause settings button opens global settings",
+		pause_menu.settings_menu.settings_tabs.current_tab == 0)
+	pause_menu.on_settings_back_requested()
+	pause_menu.on_character_settings_pressed()
+	check("pause character settings button opens character settings",
+		pause_menu.settings_menu.settings_tabs.current_tab == 1)
+	pause_menu.queue_free()
+
+
+func _settings_presets() -> void:
+	Settings.set_character_controller(Settings.CHARACTER_Q3)
+	var default_entry := _find_preset(Settings.SOURCE_BUILTIN, Settings.DEFAULT_PRESET_ID)
+	check("built-in default settings preset is listed", not default_entry.is_empty())
+
+	var default_payload := Settings.load_preset(Settings.SOURCE_BUILTIN, Settings.DEFAULT_PRESET_ID)
+	check("built-in default settings preset loads", not default_payload.is_empty())
+	check("built-in default preset matches setting schema defaults", _preset_matches_defaults(default_payload))
+	check("built-in default preset includes keybindings",
+		(default_payload.get("keybindings", {}) as Dictionary).has("player_jump"))
+
+	Settings.set_controller_setting("move_speed", 13.0, Settings.CHARACTER_Q3)
+	KeybindingsSettings.set_binding("player_jump", 0, KEY_J)
+	check("default preset applies", Settings.apply_preset(default_payload))
+	check_approx("default preset restores Q3 move speed",
+		Settings.get_controller_setting("move_speed", Settings.CHARACTER_Q3), 320.0 * 0.3048 / 8.0)
+	check("default preset restores Q3 keybindings",
+		_input_map_has_key("player_jump", KEY_SPACE))
+
+	Settings.set_controller_setting("move_speed", 17.0, Settings.CHARACTER_Q3)
+	KeybindingsSettings.set_binding("player_jump", 0, KEY_J)
+	var saved_entry := Settings.save_user_preset("Automated Test Preset")
+	check("user settings preset saves", saved_entry.get("source", "") == Settings.SOURCE_USER)
+
+	Settings.set_controller_setting("move_speed", 19.0, Settings.CHARACTER_Q3)
+	KeybindingsSettings.set_binding("player_jump", 0, KEY_U)
+	var user_payload := Settings.load_preset(saved_entry["source"], saved_entry["id"])
+	check("user settings preset loads", not user_payload.is_empty())
+	check("user settings preset applies", Settings.apply_preset(user_payload))
+	check_approx("user preset restores saved Q3 move speed",
+		Settings.get_controller_setting("move_speed", Settings.CHARACTER_Q3), 17.0)
+	check("user preset restores saved Q3 keybindings",
+		_input_map_has_key("player_jump", KEY_J))
+
+	Settings.set_character_controller(Settings.CHARACTER_SPECTATOR)
+	check("Q3 user preset is not listed for spectator",
+		_find_preset(Settings.SOURCE_USER, saved_entry["id"]).is_empty())
+	Settings.set_character_controller(Settings.CHARACTER_Q3)
+
+	var menu := SETTINGS_MENU_SCENE.instantiate()
+	add_child(menu)
+	Settings.set_controller_setting("move_speed", 19.0, Settings.CHARACTER_Q3)
+	menu.sync_from_settings()
+	check_approx("preset dropdown sync does not reapply preset over edits",
+		Settings.get_controller_setting("move_speed", Settings.CHARACTER_Q3), 19.0)
+
+	var user_index := _find_preset_option(menu, saved_entry["source"], saved_entry["id"])
+	check("saved user preset appears in settings dropdown", user_index >= 0)
+	if user_index >= 0:
+		menu.preset_option.select(user_index)
+		menu.on_preset_selected(user_index)
+		check_approx("preset dropdown selection loads preset",
+			Settings.get_controller_setting("move_speed", Settings.CHARACTER_Q3), 17.0)
+		check("preset dropdown selection persists selected preset",
+			Settings.get_selected_preset().get("id", "") == saved_entry["id"])
+
+		Settings.set_controller_setting("move_speed", 18.0, Settings.CHARACTER_Q3)
+		menu.save_preset_name_edit.text = "Automated Test Preset"
+		menu.on_save_preset_confirmed()
+		check("conflicting save asks for overwrite confirmation",
+			menu.overwrite_preset_dialog.dialog_text.contains("Overwrite preset"))
+		menu.on_overwrite_preset_confirmed()
+		var overwritten_payload := Settings.load_preset(saved_entry["source"], saved_entry["id"])
+		check("overwrite updates existing user preset",
+			is_equal_approx(float((overwritten_payload["settings"] as Dictionary)["move_speed"]), 18.0))
+		Settings.set_controller_setting("move_speed", 19.0, Settings.CHARACTER_Q3)
+		Settings.load_settings()
+		check_approx("selected user preset reapplies on settings load",
+			Settings.get_controller_setting("move_speed", Settings.CHARACTER_Q3), 18.0)
+		check("user preset delete is enabled for user entries", not menu.delete_preset_button.disabled)
+		menu.on_delete_preset_pressed()
+		check("delete asks for confirmation",
+			menu.delete_preset_dialog.dialog_text.contains("Delete preset"))
+		menu.on_delete_preset_confirmed()
+		check("deleted user preset is removed from list",
+			_find_preset(Settings.SOURCE_USER, saved_entry["id"]).is_empty())
+	menu.queue_free()
+
+
 func _numeric_text_validation() -> void:
 	Settings.set_character_controller(Settings.CHARACTER_Q3)
-	Settings.set_controller_setting("move_speed", 13.0)
 	var menu := SETTINGS_MENU_SCENE.instantiate()
 	add_child(menu)
 	menu.sync_from_settings()
+	Settings.set_controller_setting("move_speed", 13.0)
+	menu.build_controller_settings()
 	var control_data := menu.controller_controls["move_speed"] as Dictionary
 	var field := control_data["field"] as LineEdit
 
@@ -139,3 +270,28 @@ func _reset_touched_controller_settings() -> void:
 	Settings.set_controller_setting("fov", Settings.DEFAULT_FOV, Settings.CHARACTER_SPECTATOR)
 	Settings.set_controller_setting("move_speed", 12.0, Settings.CHARACTER_SPECTATOR)
 	Settings.set_controller_setting("mouse_sensitivity", Settings.DEFAULT_MOUSE_SENSITIVITY, Settings.CHARACTER_SPECTATOR)
+
+
+func _find_preset(source: String, id: String) -> Dictionary:
+	for entry in Settings.list_presets():
+		if entry["source"] == source and entry["id"] == id:
+			return entry
+	return {}
+
+
+func _find_preset_option(menu, source: String, id: String) -> int:
+	for index in menu.preset_option.item_count:
+		var entry: Dictionary = menu.preset_option.get_item_metadata(index)
+		if entry["source"] == source and entry["id"] == id:
+			return index
+	return -1
+
+
+func _preset_matches_defaults(payload: Dictionary) -> bool:
+	var controller_id := str(payload.get("controller", ""))
+	var values: Dictionary = payload.get("settings", {})
+	for def in Settings.get_controller_setting_defs(controller_id):
+		var key := str(def["key"])
+		if not values.has(key) or not is_equal_approx(float(values[key]), float(def["default"])):
+			return false
+	return true

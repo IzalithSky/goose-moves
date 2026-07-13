@@ -5,6 +5,7 @@ const LEVEL_SCENE := "res://scenes/primitive_test_level.tscn"
 @onready var menu_panel: Control = $CenterContainer/MainPanel
 @onready var start_button: Button = $CenterContainer/MainPanel/Margin/VBox/StartButton
 @onready var settings_button: Button = $CenterContainer/MainPanel/Margin/VBox/SettingsButton
+@onready var character_settings_button: Button = $CenterContainer/MainPanel/Margin/VBox/CharacterSettingsButton
 @onready var keybindings_button: Button = $CenterContainer/MainPanel/Margin/VBox/KeybindingsButton
 @onready var quit_button: Button = $CenterContainer/MainPanel/Margin/VBox/QuitButton
 @onready var settings_menu: Control = $SettingsMenu
@@ -14,6 +15,7 @@ const LEVEL_SCENE := "res://scenes/primitive_test_level.tscn"
 func _ready() -> void:
 	start_button.pressed.connect(on_start_pressed)
 	settings_button.pressed.connect(on_settings_pressed)
+	character_settings_button.pressed.connect(on_character_settings_pressed)
 	keybindings_button.pressed.connect(on_keybindings_pressed)
 	quit_button.pressed.connect(on_quit_pressed)
 	settings_menu.back_requested.connect(on_settings_back_requested)
@@ -37,7 +39,14 @@ func on_start_pressed() -> void:
 func on_settings_pressed() -> void:
 	menu_panel.visible = false
 	settings_menu.visible = true
-	settings_menu.sync_from_settings()
+	settings_menu.show_global_settings()
+	settings_menu.focus_first()
+
+
+func on_character_settings_pressed() -> void:
+	menu_panel.visible = false
+	settings_menu.visible = true
+	settings_menu.show_character_settings()
 	settings_menu.focus_first()
 
 
@@ -61,7 +70,7 @@ func on_keybindings_requested() -> void:
 func on_keybindings_back_requested() -> void:
 	keybindings_menu.visible = false
 	settings_menu.visible = true
-	settings_menu.sync_from_settings()
+	settings_menu.show_character_settings()
 	settings_menu.focus_first()
 
 

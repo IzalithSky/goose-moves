@@ -7,6 +7,7 @@ const MAIN_MENU_SCENE := "res://scenes/main_menu.tscn"
 @onready var resume_button: Button = $MenuRoot/CenterContainer/PausePanel/Margin/VBox/ResumeButton
 @onready var restart_button: Button = $MenuRoot/CenterContainer/PausePanel/Margin/VBox/RestartButton
 @onready var settings_button: Button = $MenuRoot/CenterContainer/PausePanel/Margin/VBox/SettingsButton
+@onready var character_settings_button: Button = $MenuRoot/CenterContainer/PausePanel/Margin/VBox/CharacterSettingsButton
 @onready var keybindings_button: Button = $MenuRoot/CenterContainer/PausePanel/Margin/VBox/KeybindingsButton
 @onready var main_menu_button: Button = $MenuRoot/CenterContainer/PausePanel/Margin/VBox/MainMenuButton
 @onready var settings_menu: Control = $MenuRoot/SettingsMenu
@@ -20,6 +21,7 @@ func _ready() -> void:
 	resume_button.pressed.connect(on_resume_pressed)
 	restart_button.pressed.connect(on_restart_pressed)
 	settings_button.pressed.connect(on_settings_pressed)
+	character_settings_button.pressed.connect(on_character_settings_pressed)
 	keybindings_button.pressed.connect(on_keybindings_pressed)
 	main_menu_button.pressed.connect(on_main_menu_pressed)
 	settings_menu.back_requested.connect(on_settings_back_requested)
@@ -76,7 +78,14 @@ func on_restart_pressed() -> void:
 func on_settings_pressed() -> void:
 	menu_panel.visible = false
 	settings_menu.visible = true
-	settings_menu.sync_from_settings()
+	settings_menu.show_global_settings()
+	settings_menu.focus_first()
+
+
+func on_character_settings_pressed() -> void:
+	menu_panel.visible = false
+	settings_menu.visible = true
+	settings_menu.show_character_settings()
 	settings_menu.focus_first()
 
 
@@ -100,7 +109,7 @@ func on_keybindings_requested() -> void:
 func on_keybindings_back_requested() -> void:
 	keybindings_menu.visible = false
 	settings_menu.visible = true
-	settings_menu.sync_from_settings()
+	settings_menu.show_character_settings()
 	settings_menu.focus_first()
 
 

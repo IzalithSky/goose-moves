@@ -1,0 +1,20 @@
+{
+	"version": 1,
+	"name": "Default",
+	"source": "builtin",
+	"id": "default",
+	"controller": "spectator",
+	"settings": {
+		"fov": 100.0,
+		"mouse_sensitivity": 0.003,
+		"move_speed": 12.0
+	},
+	"keybindings": {
+		"player_forward": [87, -1],
+		"player_back": [83, -1],
+		"player_left": [65, -1],
+		"player_right": [68, -1],
+		"player_jump": [32, -1],
+		"player_crouch": [4194328, -1]
+	}
+}

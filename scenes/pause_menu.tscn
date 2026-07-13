@@ -71,6 +71,11 @@ custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
 text = "Settings"
 
+[node name="CharacterSettingsButton" type="Button" parent="MenuRoot/CenterContainer/PausePanel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+text = "Character Settings"
+
 [node name="KeybindingsButton" type="Button" parent="MenuRoot/CenterContainer/PausePanel/Margin/VBox"]
 custom_minimum_size = Vector2(0, 42)
 layout_mode = 2

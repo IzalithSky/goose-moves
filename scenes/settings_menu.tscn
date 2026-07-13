@@ -31,39 +31,81 @@ theme_override_font_sizes/font_size = 28
 text = "Settings"
 horizontal_alignment = 1
 
-[node name="CharacterRow" type="HBoxContainer" parent="Panel/Margin/VBox"]
+[node name="SettingsTabs" type="TabContainer" parent="Panel/Margin/VBox"]
+custom_minimum_size = Vector2(0, 390)
+layout_mode = 2
+size_flags_vertical = 3
+tabs_visible = false
+
+[node name="Global" type="VBoxContainer" parent="Panel/Margin/VBox/SettingsTabs"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="FullscreenToggle" type="CheckButton" parent="Panel/Margin/VBox/SettingsTabs/Global"]
+layout_mode = 2
+text = "Fullscreen"
+
+[node name="Character" type="VBoxContainer" parent="Panel/Margin/VBox/SettingsTabs"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="CharacterRow" type="HBoxContainer" parent="Panel/Margin/VBox/SettingsTabs/Character"]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="Label" type="Label" parent="Panel/Margin/VBox/CharacterRow"]
+[node name="Label" type="Label" parent="Panel/Margin/VBox/SettingsTabs/Character/CharacterRow"]
 layout_mode = 2
 text = "Character"
 
-[node name="CharacterOption" type="OptionButton" parent="Panel/Margin/VBox/CharacterRow"]
+[node name="CharacterOption" type="OptionButton" parent="Panel/Margin/VBox/SettingsTabs/Character/CharacterRow"]
 custom_minimum_size = Vector2(180, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="ControllerTitle" type="Label" parent="Panel/Margin/VBox"]
+[node name="PresetRow" type="HBoxContainer" parent="Panel/Margin/VBox/SettingsTabs/Character"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="PresetLabel" type="Label" parent="Panel/Margin/VBox/SettingsTabs/Character/PresetRow"]
+layout_mode = 2
+size_flags_vertical = 4
+text = "Preset"
+
+[node name="PresetOption" type="OptionButton" parent="Panel/Margin/VBox/SettingsTabs/Character/PresetRow"]
+custom_minimum_size = Vector2(170, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="SavePresetButton" type="Button" parent="Panel/Margin/VBox/SettingsTabs/Character/PresetRow"]
+layout_mode = 2
+text = "Save As"
+
+[node name="DeletePresetButton" type="Button" parent="Panel/Margin/VBox/SettingsTabs/Character/PresetRow"]
+layout_mode = 2
+text = "Delete"
+
+[node name="StatusLabel" type="Label" parent="Panel/Margin/VBox/SettingsTabs/Character"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = ""
+
+[node name="ControllerTitle" type="Label" parent="Panel/Margin/VBox/SettingsTabs/Character"]
 layout_mode = 2
 text = "Q3 Controls"
 horizontal_alignment = 1
 
-[node name="ScrollContainer" type="ScrollContainer" parent="Panel/Margin/VBox"]
+[node name="ScrollContainer" type="ScrollContainer" parent="Panel/Margin/VBox/SettingsTabs/Character"]
 custom_minimum_size = Vector2(0, 300)
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="ControllerSettingsBox" type="VBoxContainer" parent="Panel/Margin/VBox/ScrollContainer"]
+[node name="ControllerSettingsBox" type="VBoxContainer" parent="Panel/Margin/VBox/SettingsTabs/Character/ScrollContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 10
 
-[node name="FullscreenToggle" type="CheckButton" parent="Panel/Margin/VBox"]
-layout_mode = 2
-text = "Fullscreen"
-
-[node name="KeybindingsButton" type="Button" parent="Panel/Margin/VBox"]
+[node name="KeybindingsButton" type="Button" parent="Panel/Margin/VBox/SettingsTabs/Character"]
 custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
 text = "Key Bindings"
@@ -72,3 +114,46 @@ text = "Key Bindings"
 custom_minimum_size = Vector2(0, 42)
 layout_mode = 2
 text = "Back"
+
+[node name="SavePresetDialog" type="ConfirmationDialog" parent="."]
+title = "Save Settings Preset"
+initial_position = 2
+size = Vector2i(360, 120)
+ok_button_text = "Save"
+
+[node name="Margin" type="MarginContainer" parent="SavePresetDialog"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="VBox" type="VBoxContainer" parent="SavePresetDialog/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Label" type="Label" parent="SavePresetDialog/Margin/VBox"]
+layout_mode = 2
+text = "Preset name:"
+
+[node name="PresetNameEdit" type="LineEdit" parent="SavePresetDialog/Margin/VBox"]
+layout_mode = 2
+placeholder_text = "Preset name"
+
+[node name="OverwritePresetDialog" type="ConfirmationDialog" parent="."]
+title = "Overwrite Preset"
+initial_position = 2
+ok_button_text = "Overwrite"
+
+[node name="DeletePresetDialog" type="ConfirmationDialog" parent="."]
+title = "Delete Preset"
+initial_position = 2
+ok_button_text = "Delete"

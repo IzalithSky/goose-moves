@@ -1,0 +1,35 @@
+{
+	"version": 1,
+	"name": "Default",
+	"source": "builtin",
+	"id": "default",
+	"controller": "q3",
+	"settings": {
+		"fov": 100.0,
+		"mouse_sensitivity": 0.003,
+		"move_speed": 12.192,
+		"ground_acceleration": 10.0,
+		"air_acceleration": 1.0,
+		"friction": 6.0,
+		"stop_speed": 3.81,
+		"gravity": 30.48,
+		"jump_velocity": 10.287,
+		"step_height": 0.6858,
+		"max_slope_angle": 45.572996,
+		"crouch_speed_scale": 0.25,
+		"walk_speed_scale": 0.5039370078740157,
+		"swim_speed_scale": 0.5,
+		"water_acceleration": 4.0,
+		"water_friction": 1.0,
+		"slime_friction": 12.0
+	},
+	"keybindings": {
+		"player_forward": [87, -1],
+		"player_back": [83, -1],
+		"player_left": [65, -1],
+		"player_right": [68, -1],
+		"player_jump": [32, -1],
+		"player_crouch": [4194328, -1],
+		"player_walk": [4194325, -1]
+	}
+}

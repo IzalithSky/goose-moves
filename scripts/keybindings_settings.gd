@@ -96,6 +96,36 @@ func get_bindings(action: String, controller_id := "") -> Array:
 	return (bindings.get(action, [-1, -1]) as Array).duplicate(true)
 
 
+func get_bindings_payload(controller_id := "") -> Dictionary:
+	var normalized_controller := _normalize_controller(active_controller_id if controller_id.is_empty() else controller_id)
+	var payload := {}
+	for action in get_actions(normalized_controller):
+		payload[action] = get_bindings(action, normalized_controller)
+	return payload
+
+
+func apply_bindings_payload(payload: Dictionary, controller_id := "") -> void:
+	var normalized_controller := _normalize_controller(active_controller_id if controller_id.is_empty() else controller_id)
+	if not bindings_by_controller.has(normalized_controller):
+		reset_to_defaults(false)
+	var bindings := bindings_by_controller[normalized_controller] as Dictionary
+	for action in get_actions(normalized_controller):
+		if not payload.has(action):
+			continue
+		var saved: Variant = payload[action]
+		if saved is Array:
+			var saved_slots := saved as Array
+			var slots: Array = [-1, -1]
+			for slot in mini(saved_slots.size(), MAX_BINDINGS):
+				slots[slot] = _normalize_binding(saved_slots[slot])
+			bindings[action] = slots
+		elif saved is int:
+			bindings[action] = [_normalize_binding(saved), -1]
+	apply_to_input_map()
+	save_bindings()
+	bindings_changed.emit()
+
+
 func set_binding(action: String, slot: int, binding: Variant) -> void:
 	if not action in get_actions() or slot < 0 or slot >= MAX_BINDINGS:
 		return
@@ -188,7 +218,7 @@ func _normalize_binding(binding: Variant) -> Variant:
 				"type": "mouse",
 				"button_index": button_index,
 			}
-	if binding is int and int(binding) > 0:
+	if (binding is int or binding is float) and int(binding) > 0:
 		return int(binding)
 	return -1
 

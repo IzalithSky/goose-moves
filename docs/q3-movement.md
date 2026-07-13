@@ -52,6 +52,12 @@ v += accelspeed · wishdir
   **161.26 u/s**. `BUTTON_WALKING` selects walk animations and suppresses
   footsteps; the server clears it if either move component exceeds 64.
 
+### Configurable collider and third-person view
+
+The Q3 controller profile exposes **Character size X/Y/Z** in metres. Y is the standing, feet-anchored hull height; crouching preserves the Q3 `40/56` height ratio, and both eye height and the collision offset scale with the active stance. X and Z independently control the box width and depth.
+
+The **Third-person camera** toggle switches from the eye camera to a collision-aware spring arm. **Third-person distance** configures its length from `0.5–15 m` (`4 m` by default). A translucent box mesh becomes visible only in third person and is synchronized to the live `BoxShape3D` size and local position, including profile resizing and crouching, so the rendered box is an exact visualization of the character collider.
+
 ## Key emergent behaviors
 
 - **Strafe jumping / speed > 320:** because the cap is on the projection, an off-axis wishdir keeps adding speed → total velocity grows unbounded. id's own code calls this the *"strafe jump maxspeed bug"*; the physically-correct clamp is present but `#if`'d out ("feels bad").

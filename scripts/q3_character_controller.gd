@@ -61,7 +61,6 @@ const WARSOW_WALL_JUMP_BOUNCE := 0.3
 const WARSOW_WALL_JUMP_OVERBOUNCE := 1.0005
 const WARSOW_WALL_JUMP_MAX_NORMAL_Y := 0.3
 const WARSOW_WALL_JUMP_PROBE_DIRECTIONS := 20
-const WARSOW_WALL_JUMP_PROBE_GAP := 15.0 * Q3_METERS_PER_UNIT
 const WARSOW_DASH_SPEED := 450.0 * Q3_METERS_PER_UNIT
 const WARSOW_DASH_UP_SPEED_THRESHOLD := 8.0 * Q3_METERS_PER_UNIT
 
@@ -76,6 +75,12 @@ var auto_jump := false
 var crouch_slide_enabled := false
 var ramp_launch_enabled := false
 var wall_jump_enabled := false
+var third_person_enabled := false
+var character_size := Vector3(
+	30.0 * Q3_METERS_PER_UNIT,
+	Q3_STANDING_HULL_HEIGHT * Q3_METERS_PER_UNIT,
+	30.0 * Q3_METERS_PER_UNIT,
+)
 var move_speed := Q3_SPEED * Q3_METERS_PER_UNIT
 var ground_acceleration := Q3_GROUND_ACCELERATION
 var air_acceleration := Q3_AIR_ACCELERATION
@@ -95,7 +100,10 @@ var mouse_sensitivity := 0.003
 
 @onready var head: Node3D = $Head
 @onready var camera: Camera3D = $Head/Camera3D
+@onready var third_person_spring_arm: SpringArm3D = $Head/ThirdPersonSpringArm
+@onready var third_person_camera: Camera3D = $Head/ThirdPersonSpringArm/Camera3D
 @onready var collision_shape: CollisionShape3D = $CollisionShape3D
+@onready var character_collider_visual: MeshInstance3D = $CharacterColliderVisual
 @onready var hud: Q3_MOVEMENT_HUD = $HUD
 
 var pitch := 0.0
@@ -106,6 +114,7 @@ var is_crouch_sliding := false
 var crouch_slide_time_remaining := 0.0
 var wall_jump_cooldown_remaining := 0.0
 var body_shape: BoxShape3D
+var body_mesh: BoxMesh
 var water_level := 0
 var water_type: StringName
 var water_jump_time_remaining := 0.0
@@ -118,6 +127,8 @@ func _ready() -> void:
 	floor_snap_length = step_height
 	body_shape = (collision_shape.shape as BoxShape3D).duplicate() as BoxShape3D
 	collision_shape.shape = body_shape
+	body_mesh = (character_collider_visual.mesh as BoxMesh).duplicate() as BoxMesh
+	character_collider_visual.mesh = body_mesh
 	_set_stance_geometry(false)
 	pitch = head.rotation.x
 	yaw = rotation.y
@@ -334,10 +345,11 @@ func _get_wall_jump_normal() -> Vector3:
 			TAU * direction_index / WARSOW_WALL_JUMP_PROBE_DIRECTIONS,
 		)
 		var predicted_distance := maxf(horizontal_velocity.dot(direction), 0.0) * 0.015
+		var probe_gap := maxf(body_shape.size.x, body_shape.size.z) * 0.5
 		var collision := KinematicCollision3D.new()
 		if test_move(
 			global_transform,
-			direction * (WARSOW_WALL_JUMP_PROBE_GAP + predicted_distance),
+			direction * (probe_gap + predicted_distance),
 			collision,
 			safe_margin,
 			true,
@@ -393,11 +405,21 @@ func _set_crouching(value: bool) -> void:
 
 
 func _set_stance_geometry(crouching: bool) -> void:
-	var hull_height := (Q3_CROUCH_HULL_HEIGHT if crouching else Q3_STANDING_HULL_HEIGHT) * Q3_METERS_PER_UNIT
-	var eye_height := (Q3_CROUCH_EYE_HEIGHT if crouching else Q3_STANDING_EYE_HEIGHT) * Q3_METERS_PER_UNIT
-	body_shape.size.y = hull_height
+	var hull_height := character_size.y
+	if crouching:
+		hull_height *= Q3_CROUCH_HULL_HEIGHT / Q3_STANDING_HULL_HEIGHT
+	var eye_height_ratio := (
+		Q3_CROUCH_EYE_HEIGHT / Q3_CROUCH_HULL_HEIGHT
+		if crouching
+		else Q3_STANDING_EYE_HEIGHT / Q3_STANDING_HULL_HEIGHT
+	)
+	var eye_height := hull_height * eye_height_ratio
+	body_shape.size = Vector3(character_size.x, hull_height, character_size.z)
 	collision_shape.position.y = hull_height * 0.5
 	head.position.y = eye_height
+	if body_mesh != null:
+		body_mesh.size = body_shape.size
+		character_collider_visual.position = collision_shape.position
 
 
 func _can_stand() -> bool:
@@ -778,6 +800,12 @@ func _apply_controller_settings() -> void:
 	crouch_slide_enabled = Settings.get_controller_setting("crouch_slide", Settings.CHARACTER_Q3) >= 0.5
 	ramp_launch_enabled = Settings.get_controller_setting("ramp_launch", Settings.CHARACTER_Q3) >= 0.5
 	wall_jump_enabled = Settings.get_controller_setting("wall_jump", Settings.CHARACTER_Q3) >= 0.5
+	third_person_enabled = Settings.get_controller_setting("third_person", Settings.CHARACTER_Q3) >= 0.5
+	character_size = Vector3(
+		Settings.get_controller_setting("character_size_x", Settings.CHARACTER_Q3),
+		Settings.get_controller_setting("character_size_y", Settings.CHARACTER_Q3),
+		Settings.get_controller_setting("character_size_z", Settings.CHARACTER_Q3),
+	)
 	if not wall_jump_enabled:
 		wall_jump_cooldown_remaining = 0.0
 	if not crouch_slide_enabled:
@@ -799,6 +827,17 @@ func _apply_controller_settings() -> void:
 	water_friction = Settings.get_controller_setting("water_friction", Settings.CHARACTER_Q3)
 	slime_friction = Settings.get_controller_setting("slime_friction", Settings.CHARACTER_Q3)
 	mouse_sensitivity = Settings.get_controller_setting("mouse_sensitivity", Settings.CHARACTER_Q3)
-	camera.fov = Settings.get_controller_setting("fov", Settings.CHARACTER_Q3)
+	var camera_fov := Settings.get_controller_setting("fov", Settings.CHARACTER_Q3)
+	camera.fov = camera_fov
+	third_person_camera.fov = camera_fov
+	third_person_spring_arm.spring_length = Settings.get_controller_setting(
+		"third_person_distance",
+		Settings.CHARACTER_Q3,
+	)
+	camera.current = not third_person_enabled
+	third_person_camera.current = third_person_enabled
+	character_collider_visual.visible = third_person_enabled
+	if body_shape != null:
+		_set_stance_geometry(is_crouching)
 	floor_max_angle = deg_to_rad(max_slope_angle)
 	floor_snap_length = step_height

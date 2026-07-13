@@ -23,6 +23,8 @@ func step() -> void:
 	_settings_menu_categories()
 	_menu_entry_buttons()
 	_ramp_launch_fixture()
+	_character_size_settings()
+	_third_person_option()
 	_movement_mode_option()
 	_autojump_option()
 	_crouch_slide_option()
@@ -200,6 +202,66 @@ func _ramp_launch_fixture() -> void:
 	check("playable test level includes the steep-ramp launch fixture", ramp != null)
 	if ramp != null:
 		check_approx("steep-ramp launch fixture is 55 degrees", ramp.rotation_degrees.x, 55.0)
+
+
+func _character_size_settings() -> void:
+	Settings.set_character_controller(Settings.CHARACTER_Q3)
+	var menu := SETTINGS_MENU_SCENE.instantiate()
+	add_child(menu)
+	menu.sync_from_settings()
+	check("character size X is exposed in the Q3 profile", menu.controller_controls.has("character_size_x"))
+	check("character size Y is exposed in the Q3 profile", menu.controller_controls.has("character_size_y"))
+	check("character size Z is exposed in the Q3 profile", menu.controller_controls.has("character_size_z"))
+	menu.queue_free()
+
+	Settings.set_controller_setting("character_size_x", 1.5, Settings.CHARACTER_Q3)
+	Settings.set_controller_setting("character_size_y", 2.5, Settings.CHARACTER_Q3)
+	Settings.set_controller_setting("character_size_z", 1.25, Settings.CHARACTER_Q3)
+	var controller := level.active_character as Q3CharacterController
+	check_vec3("live Q3 collider receives all three profile dimensions",
+		controller.body_shape.size, Vector3(1.5, 2.5, 1.25))
+	check_vec3("third-person box mesh exactly matches the standing collider",
+		controller.body_mesh.size, controller.body_shape.size)
+	check_vec3("third-person box offset exactly matches the collider",
+		controller.character_collider_visual.position, controller.collision_shape.position)
+	controller._set_crouching(true)
+	check_vec3("third-person box mesh follows the crouched collider",
+		controller.body_mesh.size, controller.body_shape.size)
+	check_vec3("third-person box offset follows the crouched collider",
+		controller.character_collider_visual.position, controller.collision_shape.position)
+	controller._set_crouching(false)
+
+	Settings.set_controller_setting("character_size_x", 30.0 * Q3CharacterController.Q3_METERS_PER_UNIT, Settings.CHARACTER_Q3)
+	Settings.set_controller_setting("character_size_y", Q3CharacterController.Q3_STANDING_HULL_HEIGHT * Q3CharacterController.Q3_METERS_PER_UNIT, Settings.CHARACTER_Q3)
+	Settings.set_controller_setting("character_size_z", 30.0 * Q3CharacterController.Q3_METERS_PER_UNIT, Settings.CHARACTER_Q3)
+
+
+func _third_person_option() -> void:
+	Settings.set_character_controller(Settings.CHARACTER_Q3)
+	var menu := SETTINGS_MENU_SCENE.instantiate()
+	add_child(menu)
+	menu.sync_from_settings()
+	var control_data := menu.controller_controls["third_person"] as Dictionary
+	var toggle := control_data["toggle"] as CheckButton
+	check("third-person camera uses a profile toggle", not toggle.button_pressed)
+	check("third-person distance is exposed in the Q3 profile",
+		menu.controller_controls.has("third_person_distance"))
+	menu.on_controller_toggle_changed(true, "third_person")
+	var controller := level.active_character as Q3CharacterController
+	check("live Q3 controller receives third-person setting", controller.third_person_enabled)
+	check("third-person camera becomes current", controller.third_person_camera.current)
+	check("first-person camera is no longer current", not controller.camera.current)
+	check("collider box is visible in third person", controller.character_collider_visual.visible)
+	check("third-person camera uses a collision-aware spring arm",
+		controller.third_person_spring_arm != null)
+	check_approx("third-person spring arm defaults to four metres",
+		controller.third_person_spring_arm.spring_length, 4.0)
+	Settings.set_controller_setting("third_person_distance", 6.5, Settings.CHARACTER_Q3)
+	check_approx("third-person distance updates the live spring arm",
+		controller.third_person_spring_arm.spring_length, 6.5)
+	menu.queue_free()
+	Settings.set_controller_setting("third_person", 0.0, Settings.CHARACTER_Q3)
+	Settings.set_controller_setting("third_person_distance", 4.0, Settings.CHARACTER_Q3)
 
 
 func _autojump_option() -> void:
@@ -387,6 +449,11 @@ func _reset_touched_controller_settings() -> void:
 	Settings.set_controller_setting("crouch_slide", 0.0, Settings.CHARACTER_Q3)
 	Settings.set_controller_setting("ramp_launch", 0.0, Settings.CHARACTER_Q3)
 	Settings.set_controller_setting("wall_jump", 0.0, Settings.CHARACTER_Q3)
+	Settings.set_controller_setting("third_person", 0.0, Settings.CHARACTER_Q3)
+	Settings.set_controller_setting("third_person_distance", 4.0, Settings.CHARACTER_Q3)
+	Settings.set_controller_setting("character_size_x", 30.0 * Q3CharacterController.Q3_METERS_PER_UNIT, Settings.CHARACTER_Q3)
+	Settings.set_controller_setting("character_size_y", Q3CharacterController.Q3_STANDING_HULL_HEIGHT * Q3CharacterController.Q3_METERS_PER_UNIT, Settings.CHARACTER_Q3)
+	Settings.set_controller_setting("character_size_z", 30.0 * Q3CharacterController.Q3_METERS_PER_UNIT, Settings.CHARACTER_Q3)
 	Settings.set_controller_setting("move_speed", 320.0 * 0.3048 / 8.0, Settings.CHARACTER_Q3)
 	Settings.set_controller_setting("fov", Settings.DEFAULT_FOV, Settings.CHARACTER_Q3)
 	Settings.set_controller_setting("fov", Settings.DEFAULT_FOV, Settings.CHARACTER_SPECTATOR)

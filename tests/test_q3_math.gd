@@ -22,6 +22,7 @@ func step() -> void:
 	_accelerate()
 	_warsow_classic()
 	_warsow_crouch_slide()
+	_warsow_ramp_clip()
 	_projection()
 	_wish_speed()
 	finish()
@@ -44,6 +45,22 @@ func _constants() -> void:
 	check_approx("walk scale = 64/127", c.walk_speed_scale, 64.0 / 127.0)
 	check_approx("max slope angle from MIN_WALK_NORMAL 0.7",
 		cos(deg_to_rad(c.max_slope_angle)), 0.7, 1e-5)
+
+
+func _warsow_ramp_clip() -> void:
+	var ramp_angle := deg_to_rad(55.0)
+	var ramp_normal := Vector3(-sin(ramp_angle), cos(ramp_angle), 0.0)
+	var input_velocity := Vector3(8.0, 0.0, 0.0)
+	var clipped: Vector3 = c._clip_velocity(
+		input_velocity,
+		ramp_normal,
+		c.WARSOW_SLIDE_OVERBOUNCE,
+	)
+	check("Warsow steep-ramp clip produces upward velocity", clipped.y > 0.0)
+	check_approx("Warsow steep-ramp clip uses 1.01 overbounce",
+		clipped.y,
+		-input_velocity.dot(ramp_normal) * c.WARSOW_SLIDE_OVERBOUNCE * ramp_normal.y,
+		1e-6)
 
 
 func _friction() -> void:

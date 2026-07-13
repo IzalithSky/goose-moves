@@ -34,6 +34,7 @@ const Q3_SETTING_DEFS: Array[Dictionary] = [
 	]},
 	{"key": "auto_jump", "label": "Autojump", "default": 0.0, "min": 0.0, "max": 1.0, "step": 1.0, "control": "toggle"},
 	{"key": "crouch_slide", "label": "Crouch slide", "default": 0.0, "min": 0.0, "max": 1.0, "step": 1.0, "control": "toggle"},
+	{"key": "ramp_launch", "label": "Steep-ramp launch", "default": 0.0, "min": 0.0, "max": 1.0, "step": 1.0, "control": "toggle"},
 	{"key": "move_speed", "label": "Move speed", "default": Q3CC.Q3_SPEED * Q3CC.Q3_METERS_PER_UNIT, "min": 0.0, "max": 30.0, "step": 0.1, "format": "%.2f"},
 	{"key": "ground_acceleration", "label": "Ground acceleration", "default": Q3CC.Q3_GROUND_ACCELERATION, "min": 0.0, "max": 40.0, "step": 0.1, "format": "%.1f"},
 	{"key": "air_acceleration", "label": "Air acceleration", "default": Q3CC.Q3_AIR_ACCELERATION, "min": 0.0, "max": 10.0, "step": 0.1, "format": "%.1f"},

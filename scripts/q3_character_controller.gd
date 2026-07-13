@@ -53,6 +53,8 @@ const WARSOW_CROUCH_SLIDE_FADE := 0.5
 const WARSOW_CROUCH_SLIDE_COOLDOWN := 0.7
 const WARSOW_CROUCH_SLIDE_CONTROL := 3.0
 const WARSOW_WALK_SPEED := 160.0
+const WARSOW_SLIDE_OVERBOUNCE := 1.01
+const WARSOW_PLANE_INTERACTION_EPSILON := 0.05
 
 enum MovementMode {
 	VQ3,
@@ -63,6 +65,7 @@ enum MovementMode {
 var movement_mode := MovementMode.VQ3
 var auto_jump := false
 var crouch_slide_enabled := false
+var ramp_launch_enabled := false
 var move_speed := Q3_SPEED * Q3_METERS_PER_UNIT
 var ground_acceleration := Q3_GROUND_ACCELERATION
 var air_acceleration := Q3_AIR_ACCELERATION
@@ -188,12 +191,14 @@ func _physics_process(delta: float) -> void:
 	if grounded:
 		_try_step_up(delta)
 
+	var move_velocity := velocity
 	move_and_slide()
 	if is_on_floor():
 		if grounded:
 			_restore_velocity_on_floor_plane(get_floor_normal())
-	elif not grounded:
-		velocity.y = airborne_end_velocity_y
+	else:
+		var default_velocity_y := move_velocity.y if grounded else airborne_end_velocity_y
+		velocity.y = _get_ramp_collision_velocity_y(move_velocity, default_velocity_y)
 	_update_floor_surface()
 
 
@@ -565,6 +570,31 @@ func _restore_velocity_on_floor_plane(plane_normal: Vector3) -> void:
 	velocity.y = -((velocity.x * plane_normal.x) + (velocity.z * plane_normal.z)) / plane_normal.y
 
 
+func _get_ramp_collision_velocity_y(input_velocity: Vector3, default_velocity_y: float) -> float:
+	if not ramp_launch_enabled:
+		return default_velocity_y
+
+	var result := default_velocity_y
+	var walkable_normal_y := cos(floor_max_angle)
+	for collision_index in get_slide_collision_count():
+		var plane_normal := get_slide_collision(collision_index).get_normal()
+		if (
+			plane_normal.y < WARSOW_PLANE_INTERACTION_EPSILON
+			or plane_normal.y >= walkable_normal_y
+			or input_velocity.dot(plane_normal) >= WARSOW_PLANE_INTERACTION_EPSILON
+		):
+			continue
+		result = maxf(result, velocity.y)
+		result = maxf(result, _clip_velocity(input_velocity, plane_normal, WARSOW_SLIDE_OVERBOUNCE).y)
+	return result
+
+
+func _clip_velocity(input_velocity: Vector3, plane_normal: Vector3, overbounce: float) -> Vector3:
+	var backoff := input_velocity.dot(plane_normal)
+	backoff = backoff * overbounce if backoff <= 0.0 else backoff / overbounce
+	return input_velocity - (plane_normal * backoff)
+
+
 func _get_ground_collision() -> KinematicCollision3D:
 	var collision := KinematicCollision3D.new()
 	if test_move(
@@ -639,9 +669,10 @@ func on_settings_changed() -> void:
 
 
 func _apply_controller_settings() -> void:
-	movement_mode = roundi(Settings.get_controller_setting("movement_mode", Settings.CHARACTER_Q3))
+	movement_mode = roundi(Settings.get_controller_setting("movement_mode", Settings.CHARACTER_Q3)) as MovementMode
 	auto_jump = Settings.get_controller_setting("auto_jump", Settings.CHARACTER_Q3) >= 0.5
 	crouch_slide_enabled = Settings.get_controller_setting("crouch_slide", Settings.CHARACTER_Q3) >= 0.5
+	ramp_launch_enabled = Settings.get_controller_setting("ramp_launch", Settings.CHARACTER_Q3) >= 0.5
 	if not crouch_slide_enabled:
 		is_crouch_sliding = false
 		crouch_slide_time_remaining = 0.0

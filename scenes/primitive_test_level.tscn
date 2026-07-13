@@ -252,6 +252,20 @@ use_collision = true
 size = Vector3(10, 0.5, 10)
 material = SubResource("StandardMaterial_coral")
 
+[node name="RampLaunch55" type="CSGBox3D" parent="LimitSlopes"]
+position = Vector3(-1, 4.7, -30)
+rotation_degrees = Vector3(55, 0, 0)
+use_collision = true
+size = Vector3(10, 0.5, 10)
+material = SubResource("StandardMaterial_amber")
+
+[node name="RampLaunchLabel" type="Label3D" parent="LimitSlopes"]
+position = Vector3(-1, 8.5, -30)
+billboard = 1
+text = "55° STEEP-RAMP LAUNCH"
+font_size = 48
+outline_size = 8
+
 [node name="SurfaceFlags" type="Node3D" parent="."]
 
 [node name="SlickIce" type="CSGBox3D" parent="SurfaceFlags"]

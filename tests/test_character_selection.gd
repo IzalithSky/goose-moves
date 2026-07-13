@@ -22,9 +22,11 @@ func step() -> void:
 	_controller_specific_settings()
 	_settings_menu_categories()
 	_menu_entry_buttons()
+	_ramp_launch_fixture()
 	_movement_mode_option()
 	_autojump_option()
 	_crouch_slide_option()
+	_ramp_launch_option()
 	_settings_presets()
 	_numeric_text_validation()
 	_controller_specific_keybindings()
@@ -186,6 +188,13 @@ func _movement_mode_option() -> void:
 	)
 
 
+func _ramp_launch_fixture() -> void:
+	var ramp := level.get_node_or_null("LimitSlopes/RampLaunch55") as CSGBox3D
+	check("playable test level includes the steep-ramp launch fixture", ramp != null)
+	if ramp != null:
+		check_approx("steep-ramp launch fixture is 55 degrees", ramp.rotation_degrees.x, 55.0)
+
+
 func _autojump_option() -> void:
 	Settings.set_character_controller(Settings.CHARACTER_Q3)
 	var menu := SETTINGS_MENU_SCENE.instantiate()
@@ -218,6 +227,23 @@ func _crouch_slide_option() -> void:
 		(level.active_character as Q3CharacterController).crouch_slide_enabled)
 	menu.queue_free()
 	Settings.set_controller_setting("crouch_slide", 0.0, Settings.CHARACTER_Q3)
+
+
+func _ramp_launch_option() -> void:
+	Settings.set_character_controller(Settings.CHARACTER_Q3)
+	var menu := SETTINGS_MENU_SCENE.instantiate()
+	add_child(menu)
+	menu.sync_from_settings()
+	var control_data := menu.controller_controls["ramp_launch"] as Dictionary
+	var toggle := control_data["toggle"] as CheckButton
+	check("steep-ramp launch uses a profile toggle", not toggle.button_pressed)
+	menu.on_controller_toggle_changed(true, "ramp_launch")
+	check_approx("steep-ramp launch profile toggle enables launch clipping",
+		Settings.get_controller_setting("ramp_launch", Settings.CHARACTER_Q3), 1.0)
+	check("live Q3 controller receives steep-ramp launch setting",
+		(level.active_character as Q3CharacterController).ramp_launch_enabled)
+	menu.queue_free()
+	Settings.set_controller_setting("ramp_launch", 0.0, Settings.CHARACTER_Q3)
 
 
 func _settings_presets() -> void:
@@ -333,6 +359,7 @@ func _reset_touched_controller_settings() -> void:
 	Settings.set_controller_setting("movement_mode", Q3CharacterController.MovementMode.VQ3, Settings.CHARACTER_Q3)
 	Settings.set_controller_setting("auto_jump", 0.0, Settings.CHARACTER_Q3)
 	Settings.set_controller_setting("crouch_slide", 0.0, Settings.CHARACTER_Q3)
+	Settings.set_controller_setting("ramp_launch", 0.0, Settings.CHARACTER_Q3)
 	Settings.set_controller_setting("move_speed", 320.0 * 0.3048 / 8.0, Settings.CHARACTER_Q3)
 	Settings.set_controller_setting("fov", Settings.DEFAULT_FOV, Settings.CHARACTER_Q3)
 	Settings.set_controller_setting("fov", Settings.DEFAULT_FOV, Settings.CHARACTER_SPECTATOR)

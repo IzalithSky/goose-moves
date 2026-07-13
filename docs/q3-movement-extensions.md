@@ -2,7 +2,7 @@
 
 Extends [q3-movement.md](q3-movement.md). Everything here is framed as **how each mode layers over or replaces a specific VQ3 math piece** — nothing throws the VQ3 core away.
 
-**Confidence:** VQ3 pieces are source-verified (see base doc). CPM's air-control operator and constants, plus Warsow's autojump, ramp double jump, crouch slide, and wall jump, are source-verified against **Warsow/qfusion** at `references/warsow` revision `cc22b709` (CPMA itself is closed-source). QC is **behavioral inference** (closed-source; community-reported, patch-sensitive). Q4/QC slide behavior is from docs + community, not code. Treat CPM/QC numbers as canonical-reimplementation values, not ground truth.
+**Confidence:** VQ3 pieces are source-verified (see base doc). CPM's air-control operator and constants, plus Warsow's autojump, ramp launch/double jump, crouch slide, and wall jump, are source-verified against **Warsow/qfusion** at `references/warsow` revision `cc22b709` (CPMA itself is closed-source). QC is **behavioral inference** (closed-source; community-reported, patch-sensitive). Q4/QC slide behavior is from docs + community, not code. Treat CPM/QC numbers as canonical-reimplementation values, not ground truth.
 
 ## The VQ3 pieces you extend
 
@@ -12,7 +12,7 @@ From the base doc, the swappable surface is small:
 - **`A` = Accelerate** — the projection accelerate (`bg_pmove.c:240`).
 - **Dispatch** — picks accel/friction per tick from state. VQ3 *already* varies accel by state (`:772`), so extending it is a generalization, not a bolt-on.
 
-Gravity, slide/step (`PM_StepSlideMove`), and the ground trace are **unchanged in every mode below** — none of these extensions touch them.
+Gravity and the ground trace remain shared. Warsow's optional ramp launch extends collision slide/step handling by preserving the upward velocity created when clipping into a steep plane.
 
 ## Two operators
 
@@ -124,6 +124,14 @@ if grounded:
 
 The ground categorizer permits the 0.25-unit ground trace while `v.z ≤ 180`; above `180` it forces airborne. Any positive grounded `v.z` is therefore preserved and added to, while `v.z > 100` also emits the named `EV_DOUBLEJUMP` event (`gs_pmove.cpp:1030`, `gs_pmove.cpp:1151`, `gs_pmove.cpp:1171`). With the default `jumpSpeed=280`, the named ramp/ledge window produces roughly `381–460 u/s` upward. There is no explicit ledge detector—the effect emerges when a ramp, step, or edge leaves positive vertical velocity while the ground probe still hits.
 
+## Steep-ramp launch — collision vertical carry
+
+Yes: the related Warsow technique is commonly called a **ramp slide** or **ramp jump**. A plane is walkable only at `normal.z ≥ 0.7`; a contacted plane below that threshold is not ground. `PM_SlideMove` still clips velocity along it with overbounce `1.01`, which turns part of horizontal velocity into upward velocity on a rising steep ramp (`gs_public.h:188`, `gs_pmove.cpp:320`, `gs_pmove.cpp:359`, `gs_slidebox.cpp:41`). `PM_StepSlideMove` then explicitly copies the clipped vertical result, with the source comment: “The following line is what produces the ramp sliding” (`gs_pmove.cpp:486`).
+
+The project exposes this as the independent **Steep-ramp launch** profile toggle, off by default. Contacts with upward-facing non-walkable slopes preserve the Warsow-clipped vertical velocity; near-vertical walls (`normal.y < 0.05`) and walkable floors are excluded. It is collision-driven rather than jump-input-driven, matching the source: jumping is a common way to enter the ramp contact, not an additional condition in `PM_SlideMove`.
+
+At the default `45.572996°` maximum walkable angle, a qualifying ramp is steeper than `45.572996°` but no steeper than `acos(0.05) ≈ 87.13°`. Changing **Max slope angle** changes the lower bound. To try it, start the test level, open **Character Settings → Q3**, enable **Steep-ramp launch**, then run and jump uphill into the labeled **55° STEEP-RAMP LAUNCH** fixture in the north-side slope row. Enough into-ramp speed is required for a noticeable launch.
+
 ## Wall jump — a CONTACT extension
 
 Yes. `PMFEAT_WALLJUMP` is included in Warsow's default feature set. The shared **Dash/Walljump** special button triggers it while airborne, subject to a release latch and a `1300 ms` cooldown (`gs_pmove.cpp:1279`).
@@ -148,6 +156,7 @@ slideActive(state)               # mode-defined; Warsow arms airborne for landin
 jumpRequested(input, autojump)   # just-pressed normally; held with autojump
 verticalJumpResponse(state)      # reset in VQ3; add on Warsow's grounded upslope window
 wallJumpResponse(contact, state) # optional contact-triggered velocity redirect
+rampClipResponse(contact, state) # optional steep-plane vertical preservation
 ```
 
 Switching VQ3 ↔ CPMA ↔ QC ↔ slide = swapping this struct. No branches in the mover.
@@ -163,4 +172,5 @@ Switching VQ3 ↔ CPMA ↔ QC ↔ slide = swapping this struct. No branches in t
 | ground accel value | **replace** (12) | tune | tune |
 | ground `Friction` | **replace** (coef 8, floor 12) | tune | **replace** (~0 coef) |
 | jump input gate | optional held autojump | optional held autojump | optional held autojump |
-| gravity / slide / step / trace | unchanged | unchanged | +slope-gravity |
+| steep-plane collision | optional ramp launch | tune | tune |
+| gravity / ground trace | unchanged | unchanged | +slope-gravity |

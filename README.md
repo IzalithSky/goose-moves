@@ -4,6 +4,10 @@ Godot project for comparing and tuning action-game movement mechanics — arena-
 
 Development is AI-assisted.
 
+## License
+
+This project is licensed under the GNU General Public License version 3 only (`GPL-3.0-only`). See [LICENSE](LICENSE).
+
 ## Layout
 
 - `docs/` — movement research notes (source-verified where possible) and the testing strategy

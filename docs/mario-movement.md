@@ -121,3 +121,126 @@ So "just different friction?" — no: friction (the decel multiplier) is one of 
 ## Odyssey / Banjo / Spyro
 
 Closed-source, same family (polar speed + facing + moveset FSM). Odyssey differs mainly in tuning: **roll** builds a speed scalar (cap + decay), and its **dive *resets* momentum to a fixed value** (opposite of SM64's `+15` build) — which is why cap-dive-cancel tech exists, to dodge that reset. Substrate unchanged.
+
+## Platformer controller port
+
+`scripts/platformer_controller.gd` implements the researched movement as the
+`platformer` character option. It keeps `forward_speed`, facing yaw, vertical
+speed, and action state in source units, advances formulas at a 30 Hz-equivalent
+rate, then converts motion to metres for Godot. The project scale is `0.0125 m`
+per source unit.
+
+Source speed is stored in units per 30 Hz reference frame. Conversion is
+`m/s = source_speed × 0.0125 × 30`; source acceleration converts with
+`m/s² = source_acceleration × 0.0125 × 30²`. Thus the default `32 u/f` run is
+`12 m/s`, the `42 u/f` base jump is `15.75 m/s`, and `4 u/f²` gravity is
+`45 m/s²`. A normal jump also adds `0.25 × forward_speed` once before scaling
+horizontal speed by `0.8`; that additive term is part of the source action
+transition, not a second jump impulse.
+
+Spatial values use the same conversion helper. The default Godot capsule is
+`50 u = 0.625 m` in radius and `160 u = 2 m` tall. Floor snap is
+`100 u = 1.25 m`; the floor-metadata fallback ray extends `4 u = 0.05 m` above
+and `20 u = 0.25 m` below the feet. Fall distance is converted back to source
+units before the `1150 u` damage check, while quicksand visual depth is
+converted to metres before moving the mesh.
+
+The audited wall-query dimensions are: ground lower `30 u` offset / `24 u`
+radius (`0.375 m` / `0.3 m`), ground upper `60 u` / `50 u`
+(`0.75 m` / `0.625 m`), air upper `150 u` / `50 u`
+(`1.875 m` / `0.625 m`), and swim `10 u` / `110 u`
+(`0.125 m` / `1.375 m`). Godot movement currently uses one capsule rather
+than separate height-sampled circular wall queries, so the normal capsule uses
+the converted upper/air radius and standing clearance. Tests pin every listed
+conversion so a future multi-probe implementation cannot silently change the
+scale.
+
+Implemented movement actions are walk/decelerate, slope slide, jump chain,
+backflip, side flip, long jump, wall kick, dive, ground pound, freefall, lava
+boost, and swimming. Jump, dive, long-jump, and flip momentum writers use the
+values in `set_mario_action_airborne`; ordinary air motion uses
+`update_air_without_turn`.
+
+Normal-ground release decelerates by `1 u/f` at the 30 Hz reference rate.
+High-speed input more than 100 degrees behind facing enters a turnaround state
+instead of slowly rotating walking velocity: default ground removes `4 u/f`
+there, then restarts toward the held direction at `8 u/f`. Slippery classes
+apply their source multipliers to that turnaround braking. Slope sliding also
+uses the source side-input rotation before downhill acceleration and per-frame
+loss.
+
+`CharacterBody3D` is only the collision mover. The controller writes all three
+velocity components before `move_and_slide()`: action code owns ground
+deceleration and air drag, and exactly one airborne branch owns gravity each
+tick. Godot/Jolt does not automatically apply gravity, damping, or rigid-body
+friction to a `CharacterBody3D`; the engine-assumption and live platformer
+tests pin that separation.
+
+Controls use an independent persisted platformer mapping:
+
+- Move: camera-relative `WASD` by default.
+- Jump / breaststroke: `Space`.
+- Crouch / long jump / ground pound: `Ctrl`.
+- Dive: `E`.
+- Mouse: orbit the collision-aware third-person camera.
+- View: the persisted `First-person camera` setting switches cameras and hides
+  the body mesh; third-person remains the default.
+
+## Player move guide
+
+Original control letters map to this project as follows:
+
+| Original control | Action name | Project input | Default key |
+|---|---|---|---|
+| Stick | Move | `player_forward/back/left/right` | `WASD` |
+| A | Jump / Swim Stroke | `player_jump` | `Space` |
+| B | Dive / Attack | `player_special` | `E` |
+| Z | Crouch / Ground Pound | `player_crouch` | `Ctrl` |
+
+### Base moves and combinations
+
+- **Run:** hold `WASD`. Reversing more than 100 degrees at speed enters the
+  skid/turnaround state.
+- **Jump:** press **Jump / Swim Stroke** (`Space`). Releasing it early cuts the
+  upward portion short.
+- **Double/triple jump:** press **Jump / Swim Stroke** again after consecutive
+  moving landings; the third jump needs enough forward speed.
+- **Backflip:** hold **Crouch / Ground Pound** (`Ctrl`), then press
+  **Jump / Swim Stroke** while stationary or moving slowly.
+- **Side flip:** run, reverse direction to start the turnaround, then press
+  **Jump / Swim Stroke**.
+- **Long jump:** while running, hold **Crouch / Ground Pound**, then press
+  **Jump / Swim Stroke**.
+- **Wall kick:** jump into a wall, then press **Jump / Swim Stroke** during the
+  short wall-contact window.
+- **Dive:** press **Dive / Attack** (`E`) while airborne.
+- **Ground pound:** press **Crouch / Ground Pound** while airborne.
+- **Swim:** steer with `WASD`; press **Jump / Swim Stroke** for a speed stroke.
+
+The original moveset also includes punches, a finishing kick, jump kick, slide
+kick, crawling, ledge grabs, pole climbing, and dive rollouts. Those actions are
+not yet implemented by this controller.
+
+### Common movement techniques
+
+- **Jump-dive:** jump, then dive to extend horizontal distance.
+- **Triple-jump setup:** keep moving and time jumps across consecutive
+  landings.
+- **Wall-kick chain:** alternate walls to climb narrow spaces.
+- **Slope movement:** steer a downhill slide and jump out toward the target.
+- **Dive rollout:** in the original moveset, press Jump or Attack during the
+  belly slide to preserve momentum; not yet implemented here.
+- **Backward long-jump speed build:** an original-game exploit using repeated
+  backward long jumps on suitable stairs or slopes; exact behavior is not yet
+  implemented here.
+
+Floor behavior is selected with `platformer_surface` metadata. Supported values are
+`ice` / `very_slippery`, `slippery`, `not_slippery`, `slow`, `hard`,
+`quicksand`, `moving_quicksand`, `burning`, `horizontal_wind`,
+`vertical_wind`, and `flowing_water`. Force surfaces optionally use a
+`platformer_force_direction` `Vector3`. Water is an `Area3D` on collision layer
+2 with `platformer_medium = "water"`.
+
+The primitive test level contains pads for every supported special floor,
+four class-specific slope fixtures, a flowing-water pool, and burning lava.
+It is 180 × 180 metres to keep those fixtures separate from the Q3 course.

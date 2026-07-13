@@ -24,6 +24,9 @@ non-zero exit code on failure. `HOME=/tmp` keeps user config out of the run
 | `test_q3_math.tscn` | Controller functions vs source-verified `bg_pmove.c` formulas and constants (no physics frames run) | movement math or unit conversion edited |
 | `test_engine_assumptions.tscn` | Pins the `CharacterBody3D` facts the controller depends on (Godot 4.6.1 + Jolt), using a bare body — no controller code | a Godot upgrade changes `move_and_slide` / `apply_floor_snap` semantics |
 | `test_controller_behavior.tscn` | The real controller scene on built fixtures, scripted input, multi-frame assertions | regressions in the per-frame pipeline |
+| `test_platformer_math.tscn` | Polar math, action momentum, surface classes, unit conversion, and swim constants vs the reference | platformer math or unit conversion edited |
+| `test_platformer_behavior.tscn` | Live platformer running, jump/landing, lava boost, and water transitions | platformer action pipeline regressions |
+| `test_platformer_configuration.tscn` | Controller selection, independent settings/bindings/profiles, and playable fixtures | platformer integration or persistence regressions |
 
 ### Engine facts pinned by `test_engine_assumptions`
 

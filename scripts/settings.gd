@@ -3,6 +3,7 @@ extends Node
 signal settings_changed
 
 const Q3CC := preload("res://scripts/q3_character_controller.gd")
+const PLATFORMER_CC := preload("res://scripts/platformer_controller.gd")
 const SAVE_PATH := "user://settings.cfg"
 const PRESET_SAVE_VERSION := 1
 const BUILTIN_PRESETS_DIR := "res://data/settings_presets"
@@ -17,13 +18,16 @@ const MIN_FOV := 60.0
 const MAX_FOV := 140.0
 const CHARACTER_Q3 := "q3"
 const CHARACTER_SPECTATOR := "spectator"
+const CHARACTER_PLATFORMER := "platformer"
 const CONTROLLER_SECTIONS := {
 	CHARACTER_Q3: "controller_q3",
 	CHARACTER_SPECTATOR: "controller_spectator",
+	CHARACTER_PLATFORMER: "controller_platformer",
 }
 const CONTROLLER_LABELS := {
 	CHARACTER_Q3: "Q3",
 	CHARACTER_SPECTATOR: "Spectator",
+	CHARACTER_PLATFORMER: "Platformer",
 }
 const Q3_SETTING_DEFS: Array[Dictionary] = [
 	{"key": "fov", "label": "Field of view", "default": DEFAULT_FOV, "min": MIN_FOV, "max": MAX_FOV, "step": 1.0, "format": "%.0f", "suffix": "°", "control": "slider"},
@@ -61,6 +65,25 @@ const SPECTATOR_SETTING_DEFS: Array[Dictionary] = [
 	{"key": "fov", "label": "Field of view", "default": DEFAULT_FOV, "min": MIN_FOV, "max": MAX_FOV, "step": 1.0, "format": "%.0f", "suffix": "°", "control": "slider"},
 	{"key": "mouse_sensitivity", "label": "Mouse sensitivity", "default": DEFAULT_MOUSE_SENSITIVITY, "min": 0.001, "max": 0.02, "step": 0.001, "format": "%.3f", "control": "slider"},
 	{"key": "move_speed", "label": "Move speed", "default": 12.0, "min": 0.0, "max": 50.0, "step": 0.1, "format": "%.2f"},
+]
+const PLATFORMER_SETTING_DEFS: Array[Dictionary] = [
+	{"key": "fov", "label": "Field of view", "default": DEFAULT_FOV, "min": MIN_FOV, "max": MAX_FOV, "step": 1.0, "format": "%.0f", "suffix": "°", "control": "slider"},
+	{"key": "mouse_sensitivity", "label": "Mouse sensitivity", "default": DEFAULT_MOUSE_SENSITIVITY, "min": 0.001, "max": 0.02, "step": 0.001, "format": "%.3f", "control": "slider"},
+	{"key": "camera_distance", "label": "Camera distance", "default": 6.0, "min": 1.0, "max": 15.0, "step": 0.1, "format": "%.1f", "suffix": " m"},
+	{"key": "first_person", "label": "First-person camera", "default": 0.0, "min": 0.0, "max": 1.0, "step": 1.0, "control": "toggle"},
+	{"key": "character_radius", "label": "Character radius", "default": PLATFORMER_CC.DEFAULT_RADIUS, "min": 0.2, "max": 1.5, "step": 0.01, "format": "%.2f", "suffix": " m"},
+	{"key": "character_height", "label": "Character height", "default": PLATFORMER_CC.DEFAULT_HEIGHT, "min": 0.8, "max": 4.0, "step": 0.01, "format": "%.2f", "suffix": " m"},
+	{"key": "max_run_speed", "label": "Maximum run speed", "default": PLATFORMER_CC.DEFAULT_MAX_TARGET_SPEED, "min": 1.0, "max": 100.0, "step": 0.1, "format": "%.1f", "suffix": " u/f"},
+	{"key": "slow_surface_speed", "label": "Slow-surface speed", "default": PLATFORMER_CC.DEFAULT_SLOW_TARGET_SPEED, "min": 1.0, "max": 100.0, "step": 0.1, "format": "%.1f", "suffix": " u/f"},
+	{"key": "ground_acceleration", "label": "Ground acceleration", "default": PLATFORMER_CC.DEFAULT_GROUND_ACCELERATION, "min": 0.0, "max": 10.0, "step": 0.05, "format": "%.2f", "suffix": " u/f²"},
+	{"key": "ground_deceleration", "label": "Ground deceleration", "default": PLATFORMER_CC.DEFAULT_GROUND_DECELERATION, "min": 0.0, "max": 10.0, "step": 0.05, "format": "%.2f", "suffix": " u/f²"},
+	{"key": "turn_rate", "label": "Ground turn rate", "default": PLATFORMER_CC.DEFAULT_TURN_RATE_DEGREES, "min": 0.0, "max": 180.0, "step": 0.25, "format": "%.2f", "suffix": "°/f"},
+	{"key": "air_acceleration", "label": "Air acceleration", "default": PLATFORMER_CC.DEFAULT_AIR_ACCELERATION, "min": 0.0, "max": 10.0, "step": 0.05, "format": "%.2f", "suffix": " u/f²"},
+	{"key": "air_drag", "label": "Air drag", "default": PLATFORMER_CC.DEFAULT_AIR_DRAG, "min": 0.0, "max": 5.0, "step": 0.05, "format": "%.2f", "suffix": " u/f²"},
+	{"key": "gravity", "label": "Gravity", "default": PLATFORMER_CC.DEFAULT_GRAVITY, "min": 0.0, "max": 20.0, "step": 0.1, "format": "%.1f", "suffix": " u/f²"},
+	{"key": "jump_velocity", "label": "Base jump velocity", "default": PLATFORMER_CC.DEFAULT_JUMP_VELOCITY, "min": 0.0, "max": 100.0, "step": 0.5, "format": "%.1f", "suffix": " u/f"},
+	{"key": "swim_speed", "label": "Maximum swim speed", "default": PLATFORMER_CC.DEFAULT_SWIM_SPEED, "min": 0.0, "max": 60.0, "step": 0.5, "format": "%.1f", "suffix": " u/f"},
+	{"key": "buoyancy", "label": "Deep-water buoyancy", "default": PLATFORMER_CC.DEFAULT_BUOYANCY, "min": -20.0, "max": 20.0, "step": 0.25, "format": "%.2f", "suffix": " u/f"},
 ]
 
 var fullscreen := false
@@ -106,8 +129,11 @@ func get_controller_setting(key: String, controller_id := "") -> float:
 
 
 func get_controller_setting_defs(controller_id := "") -> Array[Dictionary]:
-	if _resolve_controller(controller_id) == CHARACTER_SPECTATOR:
+	var controller := _resolve_controller(controller_id)
+	if controller == CHARACTER_SPECTATOR:
 		return SPECTATOR_SETTING_DEFS
+	if controller == CHARACTER_PLATFORMER:
+		return PLATFORMER_SETTING_DEFS
 	return Q3_SETTING_DEFS
 
 
@@ -262,6 +288,8 @@ func apply_window_mode() -> void:
 func _normalize_character_controller(value: String) -> String:
 	if value == CHARACTER_SPECTATOR:
 		return CHARACTER_SPECTATOR
+	if value == CHARACTER_PLATFORMER:
+		return CHARACTER_PLATFORMER
 	return CHARACTER_Q3
 
 

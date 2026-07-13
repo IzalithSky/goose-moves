@@ -1,0 +1,33 @@
+{
+	"version": 1,
+	"name": "Default",
+	"controller": "platformer",
+	"settings": {
+		"fov": 100.0,
+		"mouse_sensitivity": 0.003,
+		"camera_distance": 6.0,
+		"first_person": 0.0,
+		"character_radius": 0.625,
+		"character_height": 2.0,
+		"max_run_speed": 32.0,
+		"slow_surface_speed": 24.0,
+		"ground_acceleration": 1.1,
+		"ground_deceleration": 1.0,
+		"turn_rate": 11.25,
+		"air_acceleration": 1.5,
+		"air_drag": 0.35,
+		"gravity": 4.0,
+		"jump_velocity": 42.0,
+		"swim_speed": 28.0,
+		"buoyancy": -2.0
+	},
+	"keybindings": {
+		"player_forward": [87, -1],
+		"player_back": [83, -1],
+		"player_left": [65, -1],
+		"player_right": [68, -1],
+		"player_jump": [32, -1],
+		"player_crouch": [4194328, -1],
+		"player_special": [69, -1]
+	}
+}

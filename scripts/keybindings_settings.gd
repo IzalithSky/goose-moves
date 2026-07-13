@@ -7,9 +7,11 @@ const SAVE_PATH := "user://keybindings.cfg"
 const MAX_BINDINGS := 2
 const CHARACTER_Q3 := "q3"
 const CHARACTER_SPECTATOR := "spectator"
+const CHARACTER_PLATFORMER := "platformer"
 const SECTIONS := {
 	CHARACTER_Q3: "bindings_q3",
 	CHARACTER_SPECTATOR: "bindings_spectator",
+	CHARACTER_PLATFORMER: "bindings_platformer",
 }
 const Q3_ACTIONS: Array[String] = [
 	"player_forward",
@@ -29,6 +31,15 @@ const SPECTATOR_ACTIONS: Array[String] = [
 	"player_jump",
 	"player_crouch",
 ]
+const PLATFORMER_ACTIONS: Array[String] = [
+	"player_forward",
+	"player_back",
+	"player_left",
+	"player_right",
+	"player_jump",
+	"player_crouch",
+	"player_special",
+]
 const Q3_ACTION_LABELS := {
 	"player_forward": "Move Forward",
 	"player_back": "Move Back",
@@ -46,6 +57,15 @@ const SPECTATOR_ACTION_LABELS := {
 	"player_right": "Move Right",
 	"player_jump": "Move Up",
 	"player_crouch": "Move Down",
+}
+const PLATFORMER_ACTION_LABELS := {
+	"player_forward": "Move Forward",
+	"player_back": "Move Back",
+	"player_left": "Move Left",
+	"player_right": "Move Right",
+	"player_jump": "Jump / Swim Stroke",
+	"player_crouch": "Crouch / Ground Pound",
+	"player_special": "Dive / Attack",
 }
 const DEFAULT_BINDINGS := {
 	"player_forward": [KEY_W, -1],
@@ -70,14 +90,20 @@ func _ready() -> void:
 
 
 func get_actions(controller_id := "") -> Array[String]:
-	if _resolve_controller(controller_id) == CHARACTER_SPECTATOR:
+	var controller := _resolve_controller(controller_id)
+	if controller == CHARACTER_SPECTATOR:
 		return SPECTATOR_ACTIONS.duplicate()
+	if controller == CHARACTER_PLATFORMER:
+		return PLATFORMER_ACTIONS.duplicate()
 	return Q3_ACTIONS.duplicate()
 
 
 func get_action_label(action: String, controller_id := "") -> String:
-	if _resolve_controller(controller_id) == CHARACTER_SPECTATOR:
+	var controller := _resolve_controller(controller_id)
+	if controller == CHARACTER_SPECTATOR:
 		return str(SPECTATOR_ACTION_LABELS.get(action, action))
+	if controller == CHARACTER_PLATFORMER:
+		return str(PLATFORMER_ACTION_LABELS.get(action, action))
 	return str(Q3_ACTION_LABELS.get(action, action))
 
 
@@ -245,6 +271,8 @@ func _load_controller_bindings(config: ConfigFile, section: String, controller_i
 func _normalize_controller(value: String) -> String:
 	if value == CHARACTER_SPECTATOR:
 		return CHARACTER_SPECTATOR
+	if value == CHARACTER_PLATFORMER:
+		return CHARACTER_PLATFORMER
 	return CHARACTER_Q3
 
 

@@ -124,6 +124,8 @@ if grounded:
 
 The ground categorizer permits the 0.25-unit ground trace while `v.z ≤ 180`; above `180` it forces airborne. Any positive grounded `v.z` is therefore preserved and added to, while `v.z > 100` also emits the named `EV_DOUBLEJUMP` event (`gs_pmove.cpp:1030`, `gs_pmove.cpp:1151`, `gs_pmove.cpp:1171`). With the default `jumpSpeed=280`, the named ramp/ledge window produces roughly `381–460 u/s` upward. There is no explicit ledge detector—the effect emerges when a ramp, step, or edge leaves positive vertical velocity while the ground probe still hits.
 
+The project applies this in the **Warsow classic** movement mode (not a separate toggle, matching the unconditional source): the categorizer swaps VQ3's kick-off test for the `180 u/s` detach bound, jumping while falling toward a downhill plane first clips against it (`gs_pmove.cpp:1166`), and jump adds to positive grounded `v.y`. VQ3 keeps its plain reset.
+
 ## Steep-ramp launch — collision vertical carry
 
 Yes: the related Warsow technique is commonly called a **ramp slide** or **ramp jump**. A plane is walkable only at `normal.z ≥ 0.7`; a contacted plane below that threshold is not ground. `PM_SlideMove` still clips velocity along it with overbounce `1.01`, which turns part of horizontal velocity into upward velocity on a rising steep ramp (`gs_public.h:188`, `gs_pmove.cpp:320`, `gs_pmove.cpp:359`, `gs_slidebox.cpp:41`). `PM_StepSlideMove` then explicitly copies the clipped vertical result, with the source comment: “The following line is what produces the ramp sliding” (`gs_pmove.cpp:486`).

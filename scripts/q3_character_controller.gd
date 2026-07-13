@@ -53,6 +53,7 @@ const WARSOW_CROUCH_SLIDE_FADE := 0.5
 const WARSOW_CROUCH_SLIDE_COOLDOWN := 0.7
 const WARSOW_CROUCH_SLIDE_CONTROL := 3.0
 const WARSOW_WALK_SPEED := 160.0
+const WARSOW_GROUND_DETACH_SPEED := 180.0
 const WARSOW_SLIDE_OVERBOUNCE := 1.01
 const WARSOW_PLANE_INTERACTION_EPSILON := 0.05
 const WARSOW_WALL_JUMP_COOLDOWN := 1.3
@@ -158,12 +159,20 @@ func _physics_process(delta: float) -> void:
 	wall_jump_cooldown_remaining = maxf(wall_jump_cooldown_remaining - delta, 0.0)
 	var grounded := is_on_floor()
 	var floor_normal := get_floor_normal() if grounded else Vector3.UP
-	if not grounded:
+	var warsow_detached := (
+		movement_mode == MovementMode.WARSOW_CLASSIC
+		and velocity.y > WARSOW_GROUND_DETACH_SPEED * Q3_METERS_PER_UNIT
+	)
+	if warsow_detached:
+		grounded = false
+		floor_normal = Vector3.UP
+	elif not grounded:
 		var ground_collision := _get_ground_collision()
 		if ground_collision != null:
 			var traced_normal := ground_collision.get_normal()
 			var kicked_off := (
-				velocity.y > 0.0
+				movement_mode != MovementMode.WARSOW_CLASSIC
+				and velocity.y > 0.0
 				and velocity.dot(traced_normal) > Q3_GROUND_KICKOFF_SPEED
 			)
 			if traced_normal.y >= cos(floor_max_angle) and not kicked_off:
@@ -183,7 +192,7 @@ func _physics_process(delta: float) -> void:
 		_water_move(movement_input, delta)
 		return
 	if grounded and _jump_requested() and not Input.is_action_pressed("player_crouch"):
-		velocity.y = jump_velocity
+		_apply_jump_velocity(floor_normal)
 		grounded = false
 	var wall_jumped := _try_wall_jump(grounded)
 
@@ -274,6 +283,26 @@ func _jump_requested() -> bool:
 	return Input.is_action_just_pressed("player_jump")
 
 
+func _apply_jump_velocity(ground_normal: Vector3) -> void:
+	if movement_mode != MovementMode.WARSOW_CLASSIC:
+		velocity.y = jump_velocity
+		return
+	# Warsow clips against the ground when jumping while moving down toward it
+	# (gs_pmove.cpp:1166); horizontal dot with the normal means moving downhill.
+	if (
+		ground_normal.y > 0.0
+		and velocity.y < 0.0
+		and (velocity.x * ground_normal.x) + (velocity.z * ground_normal.z) > 0.0
+	):
+		velocity = _clip_velocity(velocity, ground_normal, WARSOW_SLIDE_OVERBOUNCE)
+	# Grounded upward carry is added to, not replaced: the ramp/ledge double
+	# jump (gs_pmove.cpp:1171).
+	if velocity.y > 0.0:
+		velocity.y += jump_velocity
+	else:
+		velocity.y = jump_velocity
+
+
 func _try_wall_jump(grounded: bool) -> bool:
 	if (
 		not wall_jump_enabled
@@ -292,8 +321,13 @@ func _try_wall_jump(grounded: bool) -> bool:
 	var old_vertical_velocity := velocity.y
 	var horizontal_velocity := Vector3(velocity.x, 0.0, velocity.z)
 	var horizontal_speed := horizontal_velocity.length()
-	var response := _clip_velocity(horizontal_velocity, wall_normal, WARSOW_WALL_JUMP_OVERBOUNCE)
-	response += wall_normal * WARSOW_WALL_JUMP_BOUNCE * Q3_METERS_PER_UNIT
+	# Warsow clips the normalized horizontal direction, so the 0.3 bounce bias
+	# weighs against a unit vector (gs_pmove.cpp:1343).
+	var horizontal_direction := (
+		horizontal_velocity / horizontal_speed if horizontal_speed > 0.0 else Vector3.ZERO
+	)
+	var response := _clip_velocity(horizontal_direction, wall_normal, WARSOW_WALL_JUMP_OVERBOUNCE)
+	response += wall_normal * WARSOW_WALL_JUMP_BOUNCE
 	if response.is_zero_approx():
 		response = wall_normal
 	var minimum_speed := (WARSOW_WALK_SPEED * Q3_METERS_PER_UNIT + move_speed) * 0.5

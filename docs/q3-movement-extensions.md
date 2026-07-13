@@ -141,6 +141,8 @@ Yes. `PMFEAT_WALLJUMP` is included in Warsow's default feature set. The shared *
 - **HORIZONTAL RESPONSE**: clip velocity against the wall, add `0.3·normal` bounce bias, normalize, then preserve horizontal speed with a minimum of `(walkSpeed + maxSpeed)/2`—`240 u/s` at defaults.
 - **VERTICAL RESPONSE**: set `v.z = max(old v.z, 330·gravityScale)`, clear dash, and temporarily suppress normal air-control handling (`gs_pmove.cpp:1343`).
 
+The project exposes this as the independent **Wall jump** profile toggle, off by default. It also adds the Q3-only, rebindable **Special / Wall Jump** action on `E`, matching Warsow's separate Special input rather than overloading normal Jump. Press Special while airborne and within roughly one player half-width of a wall. The implementation keeps Warsow's `1300 ms` cooldown, `|normal.y| < 0.3` wall filter, `330 u/s × gravityScale` upward response, `0.3` outward bias, and `240 u/s` default horizontal minimum. Within one step of walkable ground, normal Jump must also be held, matching the source guard.
+
 ## Minimal implementation surface
 
 One integrator (`A`, `R`, `Friction`, dispatch) stays fixed; a `MovementMode` supplies:
@@ -157,6 +159,7 @@ jumpRequested(input, autojump)   # just-pressed normally; held with autojump
 verticalJumpResponse(state)      # reset in VQ3; add on Warsow's grounded upslope window
 wallJumpResponse(contact, state) # optional contact-triggered velocity redirect
 rampClipResponse(contact, state) # optional steep-plane vertical preservation
+wallJumpInput(input)             # separate rebindable Special action
 ```
 
 Switching VQ3 ↔ CPMA ↔ QC ↔ slide = swapping this struct. No branches in the mover.
@@ -173,4 +176,5 @@ Switching VQ3 ↔ CPMA ↔ QC ↔ slide = swapping this struct. No branches in t
 | ground `Friction` | **replace** (coef 8, floor 12) | tune | **replace** (~0 coef) |
 | jump input gate | optional held autojump | optional held autojump | optional held autojump |
 | steep-plane collision | optional ramp launch | tune | tune |
+| wall contact | optional Special-button wall jump | tune | tune |
 | gravity / ground trace | unchanged | unchanged | +slope-gravity |

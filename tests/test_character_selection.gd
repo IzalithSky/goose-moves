@@ -27,6 +27,7 @@ func step() -> void:
 	_autojump_option()
 	_crouch_slide_option()
 	_ramp_launch_option()
+	_wall_jump_option()
 	_settings_presets()
 	_numeric_text_validation()
 	_controller_specific_keybindings()
@@ -99,12 +100,18 @@ func _controller_specific_keybindings() -> void:
 
 	check("spectator keybindings omit slow walk",
 		not "player_walk" in KeybindingsSettings.get_actions(Settings.CHARACTER_SPECTATOR))
+	check("spectator keybindings omit Q3 special movement",
+		not "player_special" in KeybindingsSettings.get_actions(Settings.CHARACTER_SPECTATOR))
 	check("spectator jump binding applied to InputMap",
 		_input_map_has_key("player_jump", KEY_U))
 
 	Settings.set_character_controller(Settings.CHARACTER_Q3)
 	check("Q3 keybindings include slow walk",
 		"player_walk" in KeybindingsSettings.get_actions(Settings.CHARACTER_Q3))
+	check("Q3 keybindings include Special / Wall Jump",
+		"player_special" in KeybindingsSettings.get_actions(Settings.CHARACTER_Q3))
+	check("Q3 Special / Wall Jump defaults to E",
+		_input_map_has_key("player_special", KEY_E))
 	check("Q3 jump binding restored on controller switch",
 		_input_map_has_key("player_jump", KEY_J))
 
@@ -246,6 +253,23 @@ func _ramp_launch_option() -> void:
 	Settings.set_controller_setting("ramp_launch", 0.0, Settings.CHARACTER_Q3)
 
 
+func _wall_jump_option() -> void:
+	Settings.set_character_controller(Settings.CHARACTER_Q3)
+	var menu := SETTINGS_MENU_SCENE.instantiate()
+	add_child(menu)
+	menu.sync_from_settings()
+	var control_data := menu.controller_controls["wall_jump"] as Dictionary
+	var toggle := control_data["toggle"] as CheckButton
+	check("wall jump uses a profile toggle", not toggle.button_pressed)
+	menu.on_controller_toggle_changed(true, "wall_jump")
+	check_approx("wall jump profile toggle enables wall response",
+		Settings.get_controller_setting("wall_jump", Settings.CHARACTER_Q3), 1.0)
+	check("live Q3 controller receives wall jump setting",
+		(level.active_character as Q3CharacterController).wall_jump_enabled)
+	menu.queue_free()
+	Settings.set_controller_setting("wall_jump", 0.0, Settings.CHARACTER_Q3)
+
+
 func _settings_presets() -> void:
 	Settings.set_character_controller(Settings.CHARACTER_Q3)
 	var default_entry := _find_preset(Settings.SOURCE_BUILTIN, Settings.DEFAULT_PRESET_ID)
@@ -256,6 +280,8 @@ func _settings_presets() -> void:
 	check("built-in default preset matches setting schema defaults", _preset_matches_defaults(default_payload))
 	check("built-in default preset includes keybindings",
 		(default_payload.get("keybindings", {}) as Dictionary).has("player_jump"))
+	check("built-in default preset includes Special / Wall Jump binding",
+		(default_payload.get("keybindings", {}) as Dictionary).has("player_special"))
 
 	Settings.set_controller_setting("move_speed", 13.0, Settings.CHARACTER_Q3)
 	KeybindingsSettings.set_binding("player_jump", 0, KEY_J)
@@ -360,6 +386,7 @@ func _reset_touched_controller_settings() -> void:
 	Settings.set_controller_setting("auto_jump", 0.0, Settings.CHARACTER_Q3)
 	Settings.set_controller_setting("crouch_slide", 0.0, Settings.CHARACTER_Q3)
 	Settings.set_controller_setting("ramp_launch", 0.0, Settings.CHARACTER_Q3)
+	Settings.set_controller_setting("wall_jump", 0.0, Settings.CHARACTER_Q3)
 	Settings.set_controller_setting("move_speed", 320.0 * 0.3048 / 8.0, Settings.CHARACTER_Q3)
 	Settings.set_controller_setting("fov", Settings.DEFAULT_FOV, Settings.CHARACTER_Q3)
 	Settings.set_controller_setting("fov", Settings.DEFAULT_FOV, Settings.CHARACTER_SPECTATOR)

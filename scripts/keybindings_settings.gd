@@ -18,6 +18,7 @@ const Q3_ACTIONS: Array[String] = [
 	"player_right",
 	"player_jump",
 	"player_crouch",
+	"player_special",
 	"player_walk",
 ]
 const SPECTATOR_ACTIONS: Array[String] = [
@@ -35,6 +36,7 @@ const Q3_ACTION_LABELS := {
 	"player_right": "Move Right",
 	"player_jump": "Jump",
 	"player_crouch": "Crouch",
+	"player_special": "Special / Wall Jump",
 	"player_walk": "Slow Walk",
 }
 const SPECTATOR_ACTION_LABELS := {
@@ -52,6 +54,7 @@ const DEFAULT_BINDINGS := {
 	"player_right": [KEY_D, -1],
 	"player_jump": [KEY_SPACE, -1],
 	"player_crouch": [KEY_CTRL, -1],
+	"player_special": [KEY_E, -1],
 	"player_walk": [KEY_SHIFT, -1],
 }
 

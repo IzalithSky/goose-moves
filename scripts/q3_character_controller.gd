@@ -55,6 +55,15 @@ const WARSOW_CROUCH_SLIDE_CONTROL := 3.0
 const WARSOW_WALK_SPEED := 160.0
 const WARSOW_SLIDE_OVERBOUNCE := 1.01
 const WARSOW_PLANE_INTERACTION_EPSILON := 0.05
+const WARSOW_WALL_JUMP_COOLDOWN := 1.3
+const WARSOW_WALL_JUMP_UP_SPEED := 330.0
+const WARSOW_WALL_JUMP_BOUNCE := 0.3
+const WARSOW_WALL_JUMP_OVERBOUNCE := 1.0005
+const WARSOW_WALL_JUMP_MAX_NORMAL_Y := 0.3
+const WARSOW_WALL_JUMP_PROBE_DIRECTIONS := 20
+const WARSOW_WALL_JUMP_PROBE_GAP := 15.0 * Q3_METERS_PER_UNIT
+const WARSOW_DASH_SPEED := 450.0 * Q3_METERS_PER_UNIT
+const WARSOW_DASH_UP_SPEED_THRESHOLD := 8.0 * Q3_METERS_PER_UNIT
 
 enum MovementMode {
 	VQ3,
@@ -66,6 +75,7 @@ var movement_mode := MovementMode.VQ3
 var auto_jump := false
 var crouch_slide_enabled := false
 var ramp_launch_enabled := false
+var wall_jump_enabled := false
 var move_speed := Q3_SPEED * Q3_METERS_PER_UNIT
 var ground_acceleration := Q3_GROUND_ACCELERATION
 var air_acceleration := Q3_AIR_ACCELERATION
@@ -94,6 +104,7 @@ var floor_is_slick := false
 var is_crouching := false
 var is_crouch_sliding := false
 var crouch_slide_time_remaining := 0.0
+var wall_jump_cooldown_remaining := 0.0
 var body_shape: BoxShape3D
 var water_level := 0
 var water_type: StringName
@@ -133,6 +144,7 @@ func _process(_delta: float) -> void:
 func _physics_process(delta: float) -> void:
 	_update_crouch_state()
 	_update_water_level()
+	wall_jump_cooldown_remaining = maxf(wall_jump_cooldown_remaining - delta, 0.0)
 	var grounded := is_on_floor()
 	var floor_normal := get_floor_normal() if grounded else Vector3.UP
 	if not grounded:
@@ -162,6 +174,7 @@ func _physics_process(delta: float) -> void:
 	if grounded and _jump_requested() and not Input.is_action_pressed("player_crouch"):
 		velocity.y = jump_velocity
 		grounded = false
+	var wall_jumped := _try_wall_jump(grounded)
 
 	var wish_direction := _get_wish_direction(movement_input, floor_normal if grounded else Vector3.UP)
 	var wish_speed := _get_wish_speed(movement_input)
@@ -184,7 +197,8 @@ func _physics_process(delta: float) -> void:
 				velocity.y -= gravity * delta
 		_project_velocity_onto_plane(floor_normal)
 	else:
-		_air_move(wish_direction, wish_speed, movement_input, delta)
+		if not wall_jumped:
+			_air_move(wish_direction, wish_speed, movement_input, delta)
 		airborne_end_velocity_y = velocity.y - (gravity * delta)
 		velocity.y = (velocity.y + airborne_end_velocity_y) * 0.5
 
@@ -247,6 +261,96 @@ func _jump_requested() -> bool:
 	if auto_jump:
 		return Input.is_action_pressed("player_jump")
 	return Input.is_action_just_pressed("player_jump")
+
+
+func _try_wall_jump(grounded: bool) -> bool:
+	if (
+		not wall_jump_enabled
+		or grounded
+		or water_level > 1
+		or wall_jump_cooldown_remaining > 0.0
+		or not Input.is_action_just_pressed("player_special")
+		or not _wall_jump_height_allowed()
+	):
+		return false
+
+	var wall_normal := _get_wall_jump_normal()
+	if wall_normal == Vector3.ZERO:
+		return false
+
+	var old_vertical_velocity := velocity.y
+	var horizontal_velocity := Vector3(velocity.x, 0.0, velocity.z)
+	var horizontal_speed := horizontal_velocity.length()
+	var response := _clip_velocity(horizontal_velocity, wall_normal, WARSOW_WALL_JUMP_OVERBOUNCE)
+	response += wall_normal * WARSOW_WALL_JUMP_BOUNCE * Q3_METERS_PER_UNIT
+	if response.is_zero_approx():
+		response = wall_normal
+	var minimum_speed := (WARSOW_WALK_SPEED * Q3_METERS_PER_UNIT + move_speed) * 0.5
+	response = response.normalized() * maxf(horizontal_speed, minimum_speed)
+	velocity = response
+	var gravity_scale := gravity / (Q3_GRAVITY * Q3_METERS_PER_UNIT)
+	velocity.y = maxf(old_vertical_velocity, WARSOW_WALL_JUMP_UP_SPEED * Q3_METERS_PER_UNIT * gravity_scale)
+	wall_jump_cooldown_remaining = WARSOW_WALL_JUMP_COOLDOWN
+	return true
+
+
+func _wall_jump_height_allowed() -> bool:
+	if Input.is_action_pressed("player_jump"):
+		return true
+	var horizontal_speed := Vector2(velocity.x, velocity.z).length()
+	if horizontal_speed > WARSOW_DASH_SPEED and velocity.y > WARSOW_DASH_UP_SPEED_THRESHOLD:
+		return true
+
+	var ground_collision := KinematicCollision3D.new()
+	if not test_move(
+		global_transform,
+		Vector3.DOWN * step_height,
+		ground_collision,
+		safe_margin,
+		false,
+	):
+		return true
+	return ground_collision.get_normal().y < cos(floor_max_angle)
+
+
+func _get_wall_jump_normal() -> Vector3:
+	for collision_index in get_slide_collision_count():
+		var collision := get_slide_collision(collision_index)
+		if _wall_jump_collision_allowed(collision):
+			return collision.get_normal()
+
+	var horizontal_velocity := Vector3(velocity.x, 0.0, velocity.z)
+	var primary_direction := _get_wish_direction(_get_movement_input(), Vector3.UP)
+	if primary_direction.is_zero_approx():
+		primary_direction = horizontal_velocity.normalized()
+	if primary_direction.is_zero_approx():
+		primary_direction = -global_transform.basis.z
+		primary_direction.y = 0.0
+		primary_direction = primary_direction.normalized()
+
+	for direction_index in WARSOW_WALL_JUMP_PROBE_DIRECTIONS:
+		var direction := primary_direction.rotated(
+			Vector3.UP,
+			TAU * direction_index / WARSOW_WALL_JUMP_PROBE_DIRECTIONS,
+		)
+		var predicted_distance := maxf(horizontal_velocity.dot(direction), 0.0) * 0.015
+		var collision := KinematicCollision3D.new()
+		if test_move(
+			global_transform,
+			direction * (WARSOW_WALL_JUMP_PROBE_GAP + predicted_distance),
+			collision,
+			safe_margin,
+			true,
+		) and _wall_jump_collision_allowed(collision):
+			return collision.get_normal()
+	return Vector3.ZERO
+
+
+func _wall_jump_collision_allowed(collision: KinematicCollision3D) -> bool:
+	return (
+		absf(collision.get_normal().y) < WARSOW_WALL_JUMP_MAX_NORMAL_Y
+		and not (collision.get_collider() is CharacterBody3D)
+	)
 
 
 func _update_crouch_slide(delta: float, grounded: bool) -> void:
@@ -673,6 +777,9 @@ func _apply_controller_settings() -> void:
 	auto_jump = Settings.get_controller_setting("auto_jump", Settings.CHARACTER_Q3) >= 0.5
 	crouch_slide_enabled = Settings.get_controller_setting("crouch_slide", Settings.CHARACTER_Q3) >= 0.5
 	ramp_launch_enabled = Settings.get_controller_setting("ramp_launch", Settings.CHARACTER_Q3) >= 0.5
+	wall_jump_enabled = Settings.get_controller_setting("wall_jump", Settings.CHARACTER_Q3) >= 0.5
+	if not wall_jump_enabled:
+		wall_jump_cooldown_remaining = 0.0
 	if not crouch_slide_enabled:
 		is_crouch_sliding = false
 		crouch_slide_time_remaining = 0.0

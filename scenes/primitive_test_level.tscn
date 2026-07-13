@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://c01v4dokqmt34"]
 
-[ext_resource type="Script" path="res://scripts/primitive_test_level.gd" id="1_spawner"]
+[ext_resource type="Script" uid="uid://bjmjdrn4vc2w8" path="res://scripts/primitive_test_level.gd" id="1_spawner"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_1"]
 sky_top_color = Color(0.105, 0.149, 0.2, 1)
@@ -76,30 +76,30 @@ albedo_color = Color(0.4, 0.78, 0.94, 1)
 metallic = 0.35
 roughness = 0.18
 
+[sub_resource type="BoxShape3D" id="BoxShape3D_pool_volume"]
+size = Vector3(14, 9, 14)
+
 [sub_resource type="StandardMaterial3D" id="StandardMaterial_water"]
 transparency = 1
 albedo_color = Color(0.176, 0.48, 0.82, 0.68)
 metallic = 0.15
 roughness = 0.22
 
+[sub_resource type="BoxShape3D" id="BoxShape3D_shallow_volume"]
+size = Vector3(14, 0.08, 14)
+
 [sub_resource type="StandardMaterial3D" id="StandardMaterial_slime"]
 albedo_color = Color(0.31, 0.75, 0.22, 1)
+roughness = 0.3
 emission_enabled = true
 emission = Color(0.06, 0.22, 0.025, 1)
-roughness = 0.3
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial_lava"]
 transparency = 1
 albedo_color = Color(0.95, 0.22, 0.05, 0.78)
+roughness = 0.3
 emission_enabled = true
 emission = Color(0.55, 0.055, 0.005, 1)
-roughness = 0.3
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_pool_volume"]
-size = Vector3(14, 9, 14)
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_shallow_volume"]
-size = Vector3(14, 0.08, 14)
 
 [node name="PrimitiveTestLevel" type="Node3D" unique_id=575387278]
 script = ExtResource("1_spawner")
@@ -117,19 +117,19 @@ directional_shadow_max_distance = 150.0
 [node name="GridFloor" type="CSGCombiner3D" parent="." unique_id=631383474]
 use_collision = true
 
-[node name="Base" type="CSGBox3D" parent="GridFloor"]
-position = Vector3(0, -0.1, 0)
+[node name="Base" type="CSGBox3D" parent="GridFloor" unique_id=948083644]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
 size = Vector3(110, 0.2, 110)
 material = SubResource("ShaderMaterial_grid")
 
-[node name="WaterCutout" type="CSGBox3D" parent="GridFloor"]
+[node name="WaterCutout" type="CSGBox3D" parent="GridFloor" unique_id=1342376767]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 35, -1.5, -28)
 operation = 2
-position = Vector3(35, -1.5, -28)
 size = Vector3(14.4, 4, 14.4)
 
-[node name="LavaCutout" type="CSGBox3D" parent="GridFloor"]
+[node name="LavaCutout" type="CSGBox3D" parent="GridFloor" unique_id=143552250]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 35, -1.5, 8)
 operation = 2
-position = Vector3(35, -1.5, 8)
 size = Vector3(14.4, 4, 14.4)
 
 [node name="Cubes" type="Node3D" parent="." unique_id=73206830]
@@ -153,7 +153,7 @@ size = Vector3(3.5, 3, 3.5)
 material = SubResource("StandardMaterial_teal")
 
 [node name="CubeTall" type="CSGBox3D" parent="Cubes" unique_id=600430140]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, 2.5, -14)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.819209, 2.3344116, -14)
 use_collision = true
 size = Vector3(3.5, 5, 3.5)
 material = SubResource("StandardMaterial_amber")
@@ -236,151 +236,136 @@ use_collision = true
 size = Vector3(6, 1.5, 1)
 material = SubResource("StandardMaterial_amber")
 
-[node name="LimitSlopes" type="Node3D" parent="."]
+[node name="LimitSlopes" type="Node3D" parent="." unique_id=145971118]
 
-[node name="MarginalWalkable45" type="CSGBox3D" parent="LimitSlopes"]
-position = Vector3(-35, 4, -30)
-rotation_degrees = Vector3(45, 0, 0)
+[node name="MarginalWalkable45" type="CSGBox3D" parent="LimitSlopes" unique_id=511775197]
+transform = Transform3D(1, 0, 0, 0, 0.70710677, -0.70710677, 0, 0.70710677, 0.70710677, -35, 4, -30)
 use_collision = true
 size = Vector3(10, 0.5, 10)
 material = SubResource("StandardMaterial_teal")
 
-[node name="TooSteep50" type="CSGBox3D" parent="LimitSlopes"]
-position = Vector3(-18, 4.4, -30)
-rotation_degrees = Vector3(50, 0, 0)
+[node name="TooSteep50" type="CSGBox3D" parent="LimitSlopes" unique_id=414148504]
+transform = Transform3D(1, 0, 0, 0, 0.64278764, -0.76604444, 0, 0.76604444, 0.64278764, -18, 4.4, -30)
 use_collision = true
 size = Vector3(10, 0.5, 10)
 material = SubResource("StandardMaterial_coral")
 
-[node name="RampLaunch55" type="CSGBox3D" parent="LimitSlopes"]
-position = Vector3(-1, 4.7, -30)
-rotation_degrees = Vector3(55, 0, 0)
+[node name="RampLaunch55" type="CSGBox3D" parent="LimitSlopes" unique_id=313568647]
+transform = Transform3D(-4.371139e-08, 0.81915206, 0.57357645, 0, 0.57357645, -0.81915206, -1, -3.5806274e-08, -2.5071824e-08, -18.112877, -2.685865, -49.40651)
 use_collision = true
 size = Vector3(10, 0.5, 10)
 material = SubResource("StandardMaterial_amber")
 
-[node name="RampLaunchLabel" type="Label3D" parent="LimitSlopes"]
-position = Vector3(-1, 8.5, -30)
-billboard = 1
-text = "55° STEEP-RAMP LAUNCH"
-font_size = 48
-outline_size = 8
+[node name="SurfaceFlags" type="Node3D" parent="." unique_id=1706438558]
 
-[node name="SurfaceFlags" type="Node3D" parent="."]
-
-[node name="SlickIce" type="CSGBox3D" parent="SurfaceFlags"]
-position = Vector3(-42, 0.03, 20)
+[node name="SlickIce" type="CSGBox3D" parent="SurfaceFlags" unique_id=1283227004]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -42, 0.03, 20)
 use_collision = true
 size = Vector3(10, 0.06, 60)
 material = SubResource("StandardMaterial_ice")
 metadata/q3_surface = "slick"
 
-[node name="Volumes" type="Node3D" parent="."]
+[node name="Volumes" type="Node3D" parent="." unique_id=423372645]
 
-[node name="Water" type="Area3D" parent="Volumes"]
-position = Vector3(35, -4.5, -28)
+[node name="Water" type="Area3D" parent="Volumes" unique_id=1897701202]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 35, -4.5, -28)
 collision_layer = 2
 collision_mask = 0
 metadata/q3_volume_type = "water"
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Volumes/Water"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Volumes/Water" unique_id=760944213]
 shape = SubResource("BoxShape3D_pool_volume")
 
-[node name="Surface" type="CSGBox3D" parent="Volumes/Water"]
-position = Vector3(0, 4.5, 0)
+[node name="Surface" type="CSGBox3D" parent="Volumes/Water" unique_id=979101280]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, 0)
 size = Vector3(14, 0.04, 14)
 material = SubResource("StandardMaterial_water")
 
-[node name="Slime" type="Area3D" parent="Volumes"]
-position = Vector3(35, 0.04, -10)
+[node name="Slime" type="Area3D" parent="Volumes" unique_id=1767156755]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 35, 0.04, -10)
 collision_layer = 2
 collision_mask = 0
 metadata/q3_volume_type = "slime"
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Volumes/Slime"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Volumes/Slime" unique_id=1166215470]
 shape = SubResource("BoxShape3D_shallow_volume")
 
-[node name="Surface" type="CSGBox3D" parent="Volumes/Slime"]
-position = Vector3(0, 0, 0)
+[node name="Surface" type="CSGBox3D" parent="Volumes/Slime" unique_id=1143707983]
 size = Vector3(14, 0.04, 14)
 material = SubResource("StandardMaterial_slime")
 
-[node name="Lava" type="Area3D" parent="Volumes"]
-position = Vector3(35, -4.5, 8)
+[node name="Lava" type="Area3D" parent="Volumes" unique_id=1444941699]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 35, -4.5, 8)
 collision_layer = 2
 collision_mask = 0
 metadata/q3_volume_type = "lava"
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Volumes/Lava"]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Volumes/Lava" unique_id=2067535797]
 shape = SubResource("BoxShape3D_pool_volume")
 
-[node name="Surface" type="CSGBox3D" parent="Volumes/Lava"]
-position = Vector3(0, 4.5, 0)
+[node name="Surface" type="CSGBox3D" parent="Volumes/Lava" unique_id=1405522655]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.5, 0)
 size = Vector3(14, 0.04, 14)
 material = SubResource("StandardMaterial_lava")
 
-[node name="Pools" type="Node3D" parent="."]
+[node name="Pools" type="Node3D" parent="." unique_id=1970258624]
 
-[node name="WaterSlope" type="CSGBox3D" parent="Pools"]
-position = Vector3(35, -4.5, -26)
-rotation_degrees = Vector3(-42, 0, 0)
+[node name="WaterSlope" type="CSGBox3D" parent="Pools" unique_id=2126288644]
+transform = Transform3D(1, 0, 0, 0, 0.7431448, 0.6691306, 0, -0.6691306, 0.7431448, 35, -4.5, -26)
 use_collision = true
 size = Vector3(13.8, 0.2, 13.45)
 material = SubResource("StandardMaterial_slate")
 
-[node name="WaterWallLeft" type="CSGBox3D" parent="Pools"]
-position = Vector3(27.85, -4.5, -28)
+[node name="WaterWallLeft" type="CSGBox3D" parent="Pools" unique_id=144070470]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27.85, -4.5, -28)
 use_collision = true
 size = Vector3(0.3, 9, 14.3)
 material = SubResource("StandardMaterial_slate")
 
-[node name="WaterWallRight" type="CSGBox3D" parent="Pools"]
-position = Vector3(42.15, -4.5, -28)
+[node name="WaterWallRight" type="CSGBox3D" parent="Pools" unique_id=394529920]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42.15, -4.5, -28)
 use_collision = true
 size = Vector3(0.3, 9, 14.3)
 material = SubResource("StandardMaterial_slate")
 
-[node name="WaterSlopeBack" type="CSGBox3D" parent="Pools"]
-position = Vector3(35, -4.5, -33.4)
-rotation_degrees = Vector3(70.4, 0, 0)
+[node name="WaterSlopeBack" type="CSGBox3D" parent="Pools" unique_id=556318182]
+transform = Transform3D(1, 0, 0, 0, 0.3354515, -0.9420575, 0, 0.9420575, 0.3354515, 35, -4.5, -33.4)
 use_collision = true
 size = Vector3(13.8, 0.2, 9.55)
 material = SubResource("StandardMaterial_slate")
 
-[node name="WaterBottom" type="CSGBox3D" parent="Pools"]
-position = Vector3(35, -9.05, -31.4)
+[node name="WaterBottom" type="CSGBox3D" parent="Pools" unique_id=2001216897]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 35, -9.05, -31.4)
 use_collision = true
 size = Vector3(13.8, 0.2, 0.8)
 material = SubResource("StandardMaterial_slate")
 
-[node name="LavaSlope" type="CSGBox3D" parent="Pools"]
-position = Vector3(35, -4.5, 10)
-rotation_degrees = Vector3(-42, 0, 0)
+[node name="LavaSlope" type="CSGBox3D" parent="Pools" unique_id=1092098236]
+transform = Transform3D(1, 0, 0, 0, 0.7431448, 0.6691306, 0, -0.6691306, 0.7431448, 35, -4.5, 10)
 use_collision = true
 size = Vector3(13.8, 0.2, 13.45)
 material = SubResource("StandardMaterial_coral")
 
-[node name="LavaWallLeft" type="CSGBox3D" parent="Pools"]
-position = Vector3(27.85, -4.5, 8)
+[node name="LavaWallLeft" type="CSGBox3D" parent="Pools" unique_id=741729554]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27.85, -4.5, 8)
 use_collision = true
 size = Vector3(0.3, 9, 14.3)
 material = SubResource("StandardMaterial_coral")
 
-[node name="LavaWallRight" type="CSGBox3D" parent="Pools"]
-position = Vector3(42.15, -4.5, 8)
+[node name="LavaWallRight" type="CSGBox3D" parent="Pools" unique_id=1052175233]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42.15, -4.5, 8)
 use_collision = true
 size = Vector3(0.3, 9, 14.3)
 material = SubResource("StandardMaterial_coral")
 
-[node name="LavaSlopeBack" type="CSGBox3D" parent="Pools"]
-position = Vector3(35, -4.5, 2.6)
-rotation_degrees = Vector3(70.4, 0, 0)
+[node name="LavaSlopeBack" type="CSGBox3D" parent="Pools" unique_id=1796297953]
+transform = Transform3D(1, 0, 0, 0, 0.3354515, -0.9420575, 0, 0.9420575, 0.3354515, 35, -4.5, 2.6)
 use_collision = true
 size = Vector3(13.8, 0.2, 9.55)
 material = SubResource("StandardMaterial_coral")
 
-[node name="LavaBottom" type="CSGBox3D" parent="Pools"]
-position = Vector3(35, -9.05, 4.6)
+[node name="LavaBottom" type="CSGBox3D" parent="Pools" unique_id=1944527021]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 35, -9.05, 4.6)
 use_collision = true
 size = Vector3(13.8, 0.2, 0.8)
 material = SubResource("StandardMaterial_coral")

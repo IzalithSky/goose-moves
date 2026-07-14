@@ -86,7 +86,7 @@ vel[1] = forwardVel · sin(pitch) + buoyancy     # :251
 vel[2] = forwardVel · cos(pitch) · cos(yaw)     # :252
 ```
 
-- **Buoyancy** (`get_buoyancy`, `:52`) is a vertical bias — ~`-2` normal (slow sink), `-18` metal cap; `vel[1]` eases toward it (`:221`). No gravity.
+- **Buoyancy** (`get_buoyancy`, `:52`) is a vertical bias — `-2` while in a stationary action (slow idle sink), `0` while a moving swim action, `+1.25` near the surface, `-18` metal cap; idle `vel[1]` eases toward it (`:221`). No gravity.
 - **Stroke propulsion**: idle drag pulls `forwardVel → 0` at 1.0/frame (`:220`); a breaststroke adds a burst that decays past a threshold (`:235-247`), capped at a max swim speed.
 - Swim where you're pitched/aimed — pitch follows the stick. Its own action group (idle / breaststroke / plunge…).
 
@@ -159,7 +159,10 @@ Implemented movement actions are walk/decelerate, slope slide, jump chain,
 backflip, side flip, long jump, wall kick, dive, ground pound, freefall, lava
 boost, and swimming. Jump, dive, long-jump, and flip momentum writers use the
 values in `set_mario_action_airborne`; ordinary air motion uses
-`update_air_without_turn`.
+`update_air_without_turn`. Deep-water buoyancy applies only while no direction
+is held, mirroring the source's stationary-vs-moving swim actions. The wall-kick
+window arms only on airborne wall contact and clears on landing, mirroring
+`ACT_AIR_HIT_WALL`.
 
 Normal-ground release decelerates by `1 u/f` at the 30 Hz reference rate.
 High-speed input more than 100 degrees behind facing enters a turnaround state

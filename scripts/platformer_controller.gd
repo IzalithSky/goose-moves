@@ -180,6 +180,7 @@ func _physics_process(delta: float) -> void:
 
 func _update_grounded(native_frames: float, intended_magnitude: float, intended_yaw: float) -> void:
 	vertical_speed = -0.1
+	floor_snap_length = source_units_to_meters(DROP_SNAP_UNITS)
 	if current_surface == &"burning":
 		_start_lava_boost()
 		return
@@ -264,7 +265,7 @@ func _update_airborne(native_frames: float, intended_magnitude: float, intended_
 	elif action == Action.LAVA_BOOST:
 		vertical_speed = maxf(vertical_speed - (3.2 * native_frames), -65.0)
 	elif not Input.is_action_pressed("player_jump") and vertical_speed > 20.0 and _action_has_variable_jump_height():
-		vertical_speed /= 4.0
+		vertical_speed *= pow(0.25, native_frames)
 	else:
 		vertical_speed = maxf(vertical_speed - (gravity * native_frames), TERMINAL_VELOCITY)
 
@@ -299,7 +300,9 @@ func _update_swimming(
 	var horizontal := _forward_vector(face_yaw) * horizontal_speed
 	horizontal += _get_surface_force(native_frames)
 	slide_velocity = Vector2(horizontal.x, horizontal.z)
-	vertical_speed = forward_speed * sin(swim_pitch) + buoyancy
+	vertical_speed = forward_speed * sin(swim_pitch)
+	if intended_magnitude <= 0.0:
+		vertical_speed += buoyancy
 
 
 func _start_ground_jump(_intended_magnitude: float, intended_yaw: float) -> void:
@@ -389,6 +392,7 @@ func _land() -> void:
 		jump_chain_timer = 0.0
 	action = Action.IDLE
 	vertical_speed = 0.0
+	wall_kick_timer = 0.0
 	floor_snap_length = source_units_to_meters(DROP_SNAP_UNITS)
 
 
@@ -579,8 +583,9 @@ func _handle_collisions() -> void:
 		var collision := get_slide_collision(index)
 		var normal := collision.get_normal()
 		if normal.y < 0.3:
-			last_wall_normal = normal
-			wall_kick_timer = WALL_KICK_WINDOW
+			if not is_on_floor() and _is_air_action(action):
+				last_wall_normal = normal
+				wall_kick_timer = WALL_KICK_WINDOW
 		elif normal.y > 0.2:
 			floor_collider = collision.get_collider() as Node
 	if is_on_ceiling() and vertical_speed > 0.0:

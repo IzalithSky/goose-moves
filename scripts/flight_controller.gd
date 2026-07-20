@@ -16,6 +16,7 @@ const DEFAULT_EXTRA_LINEAR_DRAG_QUADRATIC_COEFFICIENT := 0.015
 const DEFAULT_AIR_DENSITY := 1.225
 const MIN_AERODYNAMIC_SPEED_SQUARED := 0.0001
 const MIN_DIRECTION_VECTOR_LENGTH_SQUARED := 0.000001
+const MIN_HEADING_SPEED_SQUARED := 1.0
 const COLLISION_OVERBOUNCE := 1.001
 const MAX_COLLISION_SLIDES := 4
 const DEFAULT_LIFT_TABLE: Array[Vector2] = [
@@ -191,7 +192,16 @@ func _get_aerodynamic_force() -> Vector3:
 	var lift_coefficient := _sample_table(DEFAULT_LIFT_TABLE, aoa_deg)
 	var drag_coefficient := maxf(_sample_table(DEFAULT_DRAG_TABLE, aoa_deg), 0.0)
 	var drag_force := -airflow_direction * dynamic_pressure * reference_area * drag_coefficient
-	var lift_axis := global_basis.y.normalized()
+	# Lift acts perpendicular to the relative wind (in the body's symmetry plane),
+	# not along body up. Body-up lift would be tilted back by the angle of attack,
+	# adding an along-flightpath retarding component that double-counts the induced
+	# drag already baked into DEFAULT_DRAG_TABLE (the sideslip compensation keeps
+	# the right axis square to the wind, so this stays in-plane). Fall back to body
+	# up only if the wind runs along the right axis (degenerate cross product).
+	var lift_axis := global_basis.x.cross(airflow_direction)
+	if lift_axis.length_squared() < MIN_DIRECTION_VECTOR_LENGTH_SQUARED:
+		lift_axis = global_basis.y
+	lift_axis = lift_axis.normalized()
 	var lift_force := lift_axis * dynamic_pressure * reference_area * lift_coefficient
 	return drag_force + lift_force
 
@@ -208,8 +218,18 @@ func _get_extra_drag_force() -> Vector3:
 
 
 func _apply_direct_rotation() -> void:
-	var heading_forward := -global_basis.z
+	# Weathervane the heading onto the flight path: the nose follows the
+	# horizontal velocity. A bank tilts the lift vector (see _get_aerodynamic_force)
+	# and curves this velocity sideways — and because the heading tracks it, the
+	# aircraft turns. Seeding the heading from the body's own -Z instead (the old
+	# behaviour) froze the yaw: the bank still tilted lift and built sideslip, but
+	# the nose never came round, so it never turned. Fall back to the current
+	# facing when there is no usable horizontal airspeed (hover or vertical dive).
+	var heading_forward := velocity
 	heading_forward.y = 0.0
+	if heading_forward.length_squared() <= MIN_HEADING_SPEED_SQUARED:
+		heading_forward = -global_basis.z
+		heading_forward.y = 0.0
 	if heading_forward.length_squared() <= MIN_DIRECTION_VECTOR_LENGTH_SQUARED:
 		heading_forward = Vector3.FORWARD
 	else:
@@ -236,6 +256,25 @@ func _apply_direct_rotation() -> void:
 	target_right = Basis(target_forward, target_bank_angle) * target_right
 	target_up = Basis(target_forward, target_bank_angle) * target_up
 	global_basis = Basis(target_right, target_up, -target_forward).orthonormalized()
+	_apply_sideslip_compensation()
+
+
+func _apply_sideslip_compensation() -> void:
+	# Coordinated flight: yaw the body about its own up axis until the relative
+	# wind has no lateral component (zero sideslip / skid). The bank tilts the
+	# right axis out of horizontal, so a climbing or diving bank would otherwise
+	# leave the nose skidding across the airflow; nulling it here also keeps the
+	# perpendicular-to-wind lift axis (see _get_aerodynamic_force) square to the
+	# body, so the wings carry the turn cleanly.
+	if velocity.length_squared() <= MIN_HEADING_SPEED_SQUARED:
+		return
+	var axial := velocity.dot(-global_basis.z)
+	if axial <= 0.0:
+		return
+	var skid := atan2(velocity.dot(global_basis.x), axial)
+	if is_zero_approx(skid):
+		return
+	global_basis = (Basis(global_basis.y, -skid) * global_basis).orthonormalized()
 
 
 func _apply_collision_response() -> Vector3:

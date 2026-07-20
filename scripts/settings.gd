@@ -4,6 +4,7 @@ signal settings_changed
 
 const Q3CC := preload("res://scripts/q3_character_controller.gd")
 const PLATFORMER_CC := preload("res://scripts/platformer_controller.gd")
+const FLIGHT_CC := preload("res://scripts/flight_controller.gd")
 const SAVE_PATH := "user://settings.cfg"
 const PRESET_SAVE_VERSION := 1
 const BUILTIN_PRESETS_DIR := "res://data/settings_presets"
@@ -19,15 +20,18 @@ const MAX_FOV := 140.0
 const CHARACTER_Q3 := "q3"
 const CHARACTER_SPECTATOR := "spectator"
 const CHARACTER_PLATFORMER := "platformer"
+const CHARACTER_FLIGHT := "flight"
 const CONTROLLER_SECTIONS := {
 	CHARACTER_Q3: "controller_q3",
 	CHARACTER_SPECTATOR: "controller_spectator",
 	CHARACTER_PLATFORMER: "controller_platformer",
+	CHARACTER_FLIGHT: "controller_flight",
 }
 const CONTROLLER_LABELS := {
 	CHARACTER_Q3: "Q3",
 	CHARACTER_SPECTATOR: "Spectator",
 	CHARACTER_PLATFORMER: "Platformer",
+	CHARACTER_FLIGHT: "Flight",
 }
 const Q3_SETTING_DEFS: Array[Dictionary] = [
 	{"key": "fov", "label": "Field of view", "default": DEFAULT_FOV, "min": MIN_FOV, "max": MAX_FOV, "step": 1.0, "format": "%.0f", "suffix": "°", "control": "slider"},
@@ -85,6 +89,17 @@ const PLATFORMER_SETTING_DEFS: Array[Dictionary] = [
 	{"key": "swim_speed", "label": "Maximum swim speed", "default": PLATFORMER_CC.DEFAULT_SWIM_SPEED, "min": 0.0, "max": 60.0, "step": 0.5, "format": "%.1f", "suffix": " u/f"},
 	{"key": "buoyancy", "label": "Deep-water buoyancy", "default": PLATFORMER_CC.DEFAULT_BUOYANCY, "min": -20.0, "max": 20.0, "step": 0.25, "format": "%.2f", "suffix": " u/f"},
 ]
+const FLIGHT_SETTING_DEFS: Array[Dictionary] = [
+	{"key": "fov", "label": "Field of view", "default": DEFAULT_FOV, "min": MIN_FOV, "max": MAX_FOV, "step": 1.0, "format": "%.0f", "suffix": "°", "control": "slider"},
+	{"key": "mouse_sensitivity", "label": "Mouse sensitivity", "default": DEFAULT_MOUSE_SENSITIVITY, "min": 0.001, "max": 0.02, "step": 0.001, "format": "%.3f", "control": "slider"},
+	{"key": "camera_distance", "label": "Camera distance", "default": FLIGHT_CC.DEFAULT_CAMERA_DISTANCE, "min": 1.0, "max": 15.0, "step": 0.1, "format": "%.1f", "suffix": " m"},
+	{"key": "gravity_scale", "label": "Gravity scale", "default": FLIGHT_CC.DEFAULT_GRAVITY_SCALE, "min": 0.0, "max": 1.0, "step": 0.01, "format": "%.2f"},
+	{"key": "mass", "label": "Mass", "default": FLIGHT_CC.DEFAULT_MASS, "min": 1.0, "max": 50000.0, "step": 50.0, "format": "%.0f", "suffix": " kg"},
+	{"key": "max_thrust", "label": "Max thrust", "default": FLIGHT_CC.DEFAULT_MAX_THRUST, "min": 0.0, "max": 50000.0, "step": 100.0, "format": "%.0f", "suffix": " N"},
+	{"key": "flap_duration", "label": "Flap duration", "default": FLIGHT_CC.DEFAULT_FLAP_DURATION, "min": 0.0, "max": 5.0, "step": 0.05, "format": "%.2f", "suffix": " s"},
+	{"key": "reference_area", "label": "Reference area", "default": FLIGHT_CC.DEFAULT_REFERENCE_AREA, "min": 0.1, "max": 50.0, "step": 0.1, "format": "%.1f", "suffix": " m²"},
+	{"key": "extra_linear_drag_quadratic_coefficient", "label": "Extra quadratic drag", "default": FLIGHT_CC.DEFAULT_EXTRA_LINEAR_DRAG_QUADRATIC_COEFFICIENT, "min": 0.0, "max": 1.0, "step": 0.001, "format": "%.3f"},
+]
 
 var fullscreen := false
 var character_controller := CHARACTER_Q3
@@ -134,6 +149,8 @@ func get_controller_setting_defs(controller_id := "") -> Array[Dictionary]:
 		return SPECTATOR_SETTING_DEFS
 	if controller == CHARACTER_PLATFORMER:
 		return PLATFORMER_SETTING_DEFS
+	if controller == CHARACTER_FLIGHT:
+		return FLIGHT_SETTING_DEFS
 	return Q3_SETTING_DEFS
 
 
@@ -290,6 +307,8 @@ func _normalize_character_controller(value: String) -> String:
 		return CHARACTER_SPECTATOR
 	if value == CHARACTER_PLATFORMER:
 		return CHARACTER_PLATFORMER
+	if value == CHARACTER_FLIGHT:
+		return CHARACTER_FLIGHT
 	return CHARACTER_Q3
 
 

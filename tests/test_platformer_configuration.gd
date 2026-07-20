@@ -119,7 +119,7 @@ func _menu_support() -> void:
 
 func _surface_fixtures() -> void:
 	var base := level.get_node("GridFloor/Base") as CSGBox3D
-	check("playable test floor expands to 180 metres", base.size == Vector3(180.0, 0.2, 180.0))
+	check("playable test floor expands to 1000 metres", base.size == Vector3(1000.0, 0.2, 1000.0))
 	for fixture_name in [
 		"Slippery",
 		"NotSlippery",

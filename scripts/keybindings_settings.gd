@@ -8,10 +8,12 @@ const MAX_BINDINGS := 2
 const CHARACTER_Q3 := "q3"
 const CHARACTER_SPECTATOR := "spectator"
 const CHARACTER_PLATFORMER := "platformer"
+const CHARACTER_FLIGHT := "flight"
 const SECTIONS := {
 	CHARACTER_Q3: "bindings_q3",
 	CHARACTER_SPECTATOR: "bindings_spectator",
 	CHARACTER_PLATFORMER: "bindings_platformer",
+	CHARACTER_FLIGHT: "bindings_flight",
 }
 const Q3_ACTIONS: Array[String] = [
 	"player_forward",
@@ -40,6 +42,9 @@ const PLATFORMER_ACTIONS: Array[String] = [
 	"player_crouch",
 	"player_special",
 ]
+const FLIGHT_ACTIONS: Array[String] = [
+	"player_jump",
+]
 const Q3_ACTION_LABELS := {
 	"player_forward": "Move Forward",
 	"player_back": "Move Back",
@@ -66,6 +71,9 @@ const PLATFORMER_ACTION_LABELS := {
 	"player_jump": "Jump / Swim Stroke",
 	"player_crouch": "Crouch / Ground Pound",
 	"player_special": "Dive / Attack",
+}
+const FLIGHT_ACTION_LABELS := {
+	"player_jump": "Flap / Jump",
 }
 const DEFAULT_BINDINGS := {
 	"player_forward": [KEY_W, -1],
@@ -95,6 +103,8 @@ func get_actions(controller_id := "") -> Array[String]:
 		return SPECTATOR_ACTIONS.duplicate()
 	if controller == CHARACTER_PLATFORMER:
 		return PLATFORMER_ACTIONS.duplicate()
+	if controller == CHARACTER_FLIGHT:
+		return FLIGHT_ACTIONS.duplicate()
 	return Q3_ACTIONS.duplicate()
 
 
@@ -104,6 +114,8 @@ func get_action_label(action: String, controller_id := "") -> String:
 		return str(SPECTATOR_ACTION_LABELS.get(action, action))
 	if controller == CHARACTER_PLATFORMER:
 		return str(PLATFORMER_ACTION_LABELS.get(action, action))
+	if controller == CHARACTER_FLIGHT:
+		return str(FLIGHT_ACTION_LABELS.get(action, action))
 	return str(Q3_ACTION_LABELS.get(action, action))
 
 
@@ -273,6 +285,8 @@ func _normalize_controller(value: String) -> String:
 		return CHARACTER_SPECTATOR
 	if value == CHARACTER_PLATFORMER:
 		return CHARACTER_PLATFORMER
+	if value == CHARACTER_FLIGHT:
+		return CHARACTER_FLIGHT
 	return CHARACTER_Q3
 
 

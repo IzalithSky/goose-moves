@@ -1,0 +1,19 @@
+{
+	"version": 1,
+	"name": "Default",
+	"controller": "flight",
+	"settings": {
+		"fov": 100.0,
+		"mouse_sensitivity": 0.003,
+		"camera_distance": 5.0,
+		"gravity_scale": 0.15,
+		"mass": 4.0,
+		"max_thrust": 18.8,
+		"flap_duration": 1.0,
+		"reference_area": 0.275,
+		"extra_linear_drag_quadratic_coefficient": 0.015
+	},
+	"keybindings": {
+		"player_jump": [32, -1]
+	}
+}

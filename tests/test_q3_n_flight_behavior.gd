@@ -93,10 +93,24 @@ func _direct_transitions() -> void:
 		Basis(Vector3.FORWARD, deg_to_rad(40.0))
 		* Basis(Vector3.RIGHT, deg_to_rad(25.0))
 	).orthonormalized()
-	var takeoff_pitch_axis := _get_pitch_axis_from_view(c.get_view_camera().global_basis)
+	var q3_view_camera := c.get_view_camera()
+	var q3_view_transform := q3_view_camera.global_transform
+	var q3_view_fov := q3_view_camera.fov
+	var takeoff_pitch_axis := _get_pitch_axis_from_view(q3_view_camera.global_basis)
 	c._enter_flight()
 	check("direct transition enters flight mode", c.mode == c.Mode.FLIGHT)
 	check_vec3("Q3 -> flight preserves velocity", c.velocity, Vector3(3, 4, -5), 0.001)
+	check("Q3 -> flight starts camera blend", c.camera_transition_active)
+	check("Q3 -> flight uses transition camera during blend", c.transition_camera.current)
+	check_vec3("Q3 -> flight camera blend starts at Q3 view", c.transition_camera.global_position, q3_view_transform.origin, 0.001)
+	check_approx("Q3 -> flight camera blend starts at Q3 FOV", c.transition_camera.fov, q3_view_fov, 0.001)
+	var flight_view_position := c.flight_camera.global_position
+	c._update_camera_transition(c.CAMERA_TRANSITION_DURATION * 0.5)
+	check("Q3 -> flight camera blend moves away from Q3 view", c.transition_camera.global_position.distance_to(q3_view_transform.origin) > 0.001)
+	check("Q3 -> flight camera blend has not snapped to flight view", c.transition_camera.global_position.distance_to(flight_view_position) > 0.001)
+	c._update_camera_transition(c.CAMERA_TRANSITION_DURATION)
+	check("Q3 -> flight camera blend finishes", not c.camera_transition_active)
+	check("Q3 -> flight camera hands off to flight camera", c.flight_camera.current)
 	check_vec3(
 		"Q3 -> flight pitches nose along takeoff velocity",
 		_project_onto_pitch_plane(-c.global_basis.z, takeoff_pitch_axis).normalized(),
@@ -115,11 +129,25 @@ func _direct_transitions() -> void:
 	check("hybrid flight third-person camera becomes active again", c.get_view_camera() == c.flight_camera)
 	check("hybrid flight body shows in third person", c.flight_body_mesh.visible)
 
+	var flight_view_transform := c.get_view_camera().global_transform
+	var flight_view_fov := c.get_view_camera().fov
 	c._enter_q3(true)
 	check("direct transition returns to Q3 mode", c.mode == c.Mode.Q3)
 	check_vec3("flight -> Q3 preserves velocity", c.velocity, Vector3(3, 4, -5), 0.001)
 	check_approx("flight -> Q3 snaps pitch upright", c.rotation.x, 0.0, 0.001)
 	check_approx("flight -> Q3 snaps roll upright", c.rotation.z, 0.0, 0.001)
+	check("flight -> Q3 starts camera blend", c.camera_transition_active)
+	check("flight -> Q3 uses transition camera during blend", c.transition_camera.current)
+	check_vec3("flight -> Q3 camera blend starts at flight view", c.transition_camera.global_position, flight_view_transform.origin, 0.001)
+	check_approx("flight -> Q3 camera blend starts at flight FOV", c.transition_camera.fov, flight_view_fov, 0.001)
+	var q3_return_camera := c._get_q3_view_camera()
+	var q3_return_position := q3_return_camera.global_position
+	c._update_camera_transition(c.CAMERA_TRANSITION_DURATION * 0.5)
+	check("flight -> Q3 camera blend moves away from flight view", c.transition_camera.global_position.distance_to(flight_view_transform.origin) > 0.001)
+	check("flight -> Q3 camera blend has not snapped to Q3 view", c.transition_camera.global_position.distance_to(q3_return_position) > 0.001)
+	c._update_camera_transition(c.CAMERA_TRANSITION_DURATION)
+	check("flight -> Q3 camera blend finishes", not c.camera_transition_active)
+	check("flight -> Q3 camera hands off to Q3 camera", q3_return_camera.current)
 	Input.action_release("player_jump")
 	Input.action_release("player_crouch")
 	c.global_position = Vector3(4, 0.2, 4)

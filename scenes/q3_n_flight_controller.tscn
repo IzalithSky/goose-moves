@@ -71,6 +71,9 @@ fov = 100.0
 [node name="FlightFirstPersonCamera" type="Camera3D" parent="."]
 fov = 100.0
 
+[node name="TransitionCamera" type="Camera3D" parent="."]
+fov = 100.0
+
 [node name="FlightHUD" type="CanvasLayer" parent="."]
 visible = false
 

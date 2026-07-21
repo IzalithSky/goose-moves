@@ -3,6 +3,7 @@ extends CharacterBody3D
 
 const DEFAULT_FLIGHT_HOLD_THRESHOLD := 0.3
 const DEFAULT_FLIGHT_NO_CONTACT_THRESHOLD := 0.3
+const CAMERA_TRANSITION_DURATION := 0.2
 const FLIGHT_COLLISION_SIZE := Vector3(1.2, 1.2, 1.2)
 const Q3_MOVEMENT_MOTOR := preload("res://scripts/q3_movement_motor.gd")
 const FLIGHT_MOVEMENT_MOTOR := preload("res://scripts/flight_movement_motor.gd")
@@ -24,6 +25,7 @@ enum Mode {
 @onready var flight_camera_rig: Node3D = $FlightCameraRig
 @onready var flight_camera: Camera3D = $FlightCameraRig/SpringArm3D/Camera3D
 @onready var flight_first_person_camera: Camera3D = $FlightFirstPersonCamera
+@onready var transition_camera: Camera3D = $TransitionCamera
 @onready var flight_spring_arm: SpringArm3D = $FlightCameraRig/SpringArm3D
 @onready var flight_hud: CanvasLayer = $FlightHUD
 @onready var flight_status_label: Label = $FlightHUD/StatusLabel
@@ -35,9 +37,15 @@ var flight_hold_threshold := DEFAULT_FLIGHT_HOLD_THRESHOLD
 var flight_no_contact_threshold := DEFAULT_FLIGHT_NO_CONTACT_THRESHOLD
 var flap_hold_time := 0.0
 var no_surface_contact_time := 0.0
+var camera_transition_active := false
+var camera_transition_elapsed := 0.0
+var camera_transition_from_transform := Transform3D.IDENTITY
+var camera_transition_from_fov := 100.0
+var camera_transition_target: Camera3D
 
 
 func _ready() -> void:
+	transition_camera.top_level = true
 	flight_motor.setup(self, {
 		"collision_shape": collision_shape,
 		"body_mesh": flight_body_mesh,
@@ -67,6 +75,7 @@ func _process(delta: float) -> void:
 		flight_motor.process_tick(delta)
 	else:
 		q3_motor.process_tick(delta)
+	_update_camera_transition(delta)
 
 
 func _physics_process(delta: float) -> void:
@@ -103,6 +112,8 @@ func place_at_view(view_transform: Transform3D) -> void:
 
 
 func get_view_camera() -> Camera3D:
+	if camera_transition_active:
+		return transition_camera
 	if mode == Mode.FLIGHT:
 		return flight_motor.get_view_camera()
 	if q3_motor.third_person_enabled:
@@ -158,9 +169,12 @@ func _is_touching_surface() -> bool:
 func _enter_flight() -> void:
 	if mode == Mode.FLIGHT:
 		return
+	var previous_camera := get_view_camera()
+	var previous_view_transform := previous_camera.global_transform
+	var previous_view_fov := previous_camera.fov
 	var preserved_velocity := velocity
 	var preserved_position := global_position
-	var view_transform := get_view_camera().global_transform
+	var view_transform := previous_view_transform
 	var flight_basis := _get_takeoff_flight_basis(view_transform.basis, preserved_velocity)
 	var view_euler := view_transform.basis.get_euler()
 	if _body_would_overlap_with_basis(flight_basis):
@@ -181,6 +195,7 @@ func _enter_flight() -> void:
 	flight_motor._apply_camera_rotation()
 	flight_motor._update_aero_angles()
 	_set_flight_visuals()
+	_begin_camera_transition(previous_view_transform, previous_view_fov, flight_motor.get_view_camera())
 
 
 func _get_takeoff_flight_basis(view_basis: Basis, takeoff_velocity: Vector3) -> Basis:
@@ -225,6 +240,10 @@ func _body_would_overlap_with_basis(candidate_basis: Basis) -> bool:
 
 
 func _enter_q3(snap_upright: bool) -> void:
+	var should_blend_camera := mode == Mode.FLIGHT
+	var previous_camera := get_view_camera()
+	var previous_view_transform := previous_camera.global_transform
+	var previous_view_fov := previous_camera.fov
 	var preserved_velocity := velocity
 	if snap_upright:
 		var upright_yaw := _get_upright_yaw()
@@ -245,22 +264,73 @@ func _enter_q3(snap_upright: bool) -> void:
 	flap_hold_time = 0.0
 	no_surface_contact_time = 0.0
 	_set_q3_visuals()
+	if should_blend_camera:
+		_begin_camera_transition(previous_view_transform, previous_view_fov, _get_q3_view_camera())
 
 
 func _set_q3_visuals() -> void:
+	_cancel_camera_transition()
 	flight_motor.set_view_active(false)
 	flight_hud.visible = false
-	camera.current = not q3_motor.third_person_enabled
-	third_person_camera.current = q3_motor.third_person_enabled
+	_get_q3_view_camera().current = true
 	character_collider_visual.visible = q3_motor.third_person_enabled
 
 
 func _set_flight_visuals() -> void:
+	_cancel_camera_transition()
 	flight_hud.visible = true
 	camera.current = false
 	third_person_camera.current = false
 	flight_motor.set_view_active(true)
 	character_collider_visual.visible = false
+
+
+func _get_q3_view_camera() -> Camera3D:
+	if q3_motor.third_person_enabled:
+		return third_person_camera
+	return camera
+
+
+func _begin_camera_transition(from_transform: Transform3D, from_fov: float, target_camera: Camera3D) -> void:
+	if target_camera == null or CAMERA_TRANSITION_DURATION <= 0.0:
+		if target_camera != null:
+			target_camera.current = true
+		return
+	camera_transition_from_transform = from_transform
+	camera_transition_from_fov = from_fov
+	camera_transition_target = target_camera
+	camera_transition_elapsed = 0.0
+	camera_transition_active = true
+	transition_camera.global_transform = from_transform
+	transition_camera.fov = from_fov
+	transition_camera.current = true
+
+
+func _cancel_camera_transition() -> void:
+	camera_transition_active = false
+	camera_transition_target = null
+	if transition_camera != null:
+		transition_camera.current = false
+
+
+func _update_camera_transition(delta: float) -> void:
+	if not camera_transition_active:
+		return
+	if camera_transition_target == null:
+		_cancel_camera_transition()
+		return
+	camera_transition_elapsed += delta
+	var raw_weight := clampf(camera_transition_elapsed / CAMERA_TRANSITION_DURATION, 0.0, 1.0)
+	var weight := smoothstep(0.0, 1.0, raw_weight)
+	var target_transform := camera_transition_target.global_transform
+	var blended_origin := camera_transition_from_transform.origin.lerp(target_transform.origin, weight)
+	var blended_basis := camera_transition_from_transform.basis.slerp(target_transform.basis, weight).orthonormalized()
+	transition_camera.global_transform = Transform3D(blended_basis, blended_origin)
+	transition_camera.fov = lerpf(camera_transition_from_fov, camera_transition_target.fov, weight)
+	if raw_weight >= 1.0:
+		var final_camera := camera_transition_target
+		_cancel_camera_transition()
+		final_camera.current = true
 
 
 func _get_upright_yaw() -> float:

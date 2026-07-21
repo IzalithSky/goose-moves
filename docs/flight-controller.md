@@ -2,7 +2,7 @@
 
 The flight controller is a direct-orientation port of the plane-style mechanics
 from `../merlin`. It does not integrate angular velocity or torque. Each physics
-frame derives a target body basis from velocity and camera input, writes
+frame derives a target body basis from velocity and input state, writes
 `global_basis` directly, then lets aerodynamic forces bend the velocity over
 time.
 
@@ -11,10 +11,10 @@ time.
 `scripts/flight_controller.gd` runs the controller in this order:
 
 1. Decrement flap cooldown.
-2. Collect discrete input (`player_jump` can apply a flap impulse).
+2. Collect pitch/roll input (`player_jump` can apply a flap impulse).
 3. Measure current angle of attack and sideslip from local velocity.
 4. Apply gravity, aerodynamic lift/drag, and extra drag to velocity.
-5. Apply direct rotation from velocity/camera controls.
+5. Apply direct rotation from pitch/roll input around the current body axes.
 6. Move with `move_and_slide()`.
 7. Apply collision response and Q3-style floor friction if grounded.
 8. Move the camera rig to the character.
@@ -48,70 +48,68 @@ Mouse input updates a detached camera rig:
 
 - Horizontal mouse changes `camera_yaw`.
 - Vertical mouse changes `camera_pitch`, clamped to `-75°..60°`.
-- The camera rig is top-level and follows character position, so camera pitch is
-  a control input, not a child rotation inherited from the aircraft body.
+- The camera rig is top-level and follows character position.
 
-The controller interprets camera pitch as requested AoA. It does not try to put
-the nose at a particular world/horizon pitch.
+Mouse/camera movement is view-only for flight. It no longer drives pitch, roll,
+or bank.
 
-## Heading and bank
+## Pitch and roll controls
 
-The controller first chooses a heading reference from velocity:
+Flight uses the controller keybinding actions:
 
-- Use horizontal velocity projected onto the world XZ plane.
-- If horizontal speed is too small, fall back to the current body forward.
-- If that is also degenerate, use `Vector3.FORWARD`.
+| Action | Default key | Effect |
+|---|---:|---|
+| `player_forward` | W | Pitch down |
+| `player_back` | S | Pitch up |
+| `player_left` | A | Roll left |
+| `player_right` | D | Roll right |
+| `player_jump` | Space | Flap |
 
-It then compares that heading to the camera's flat forward direction and computes
-a yaw error. Bank is driven directly by that yaw error:
+Pitch keys command a pitch rate around the current body-right axis:
 
 ```gdscript
-target_bank_angle = clamp(-yaw_error, -max_bank_angle, max_bank_angle)
+pitch_input = Input.get_action_strength("player_back") - Input.get_action_strength("player_forward")
+pitch_delta = aoa_limit(pitch_input * DEFAULT_PITCH_RATE_DEGREES_PER_SECOND * delta)
+basis = Basis(body_right, pitch_delta) * basis
 ```
 
-So the nose/camera yaw-to-bank ratio is 1:1 until the configured bank limit is
-hit. The `Max bank angle` setting is parameterized with a `0°..90°` range. The
-current default comes from `DEFAULT_MAX_BANK_ANGLE_DEGREES`.
+Roll keys command a roll rate around the current body-forward axis:
 
-Bank does not directly yaw the aircraft as an input. Instead, bank tilts the lift
-vector. Tilted lift curves velocity sideways; on following frames the heading
-reference follows that changed velocity, so the aircraft turns.
+```gdscript
+roll_input = Input.get_action_strength("player_right") - Input.get_action_strength("player_left")
+basis = Basis(body_forward, roll_input * DEFAULT_ROLL_RATE_DEGREES_PER_SECOND * delta) * basis
+```
+
+These axes come from the character body basis at the start of the frame, matching
+Merlin's body-basis control torque mapping. They are not camera-relative or
+world-up-relative.
+
+There is no bank limiter. Roll is only limited by the per-frame roll rate.
+
+Roll does not directly yaw the aircraft. Instead, roll tilts the lift vector.
+Tilted lift curves velocity sideways, while slip/skid compensation yaws the
+aircraft toward the local yaw-plane velocity.
 
 ## Pitch and AoA
 
-Pitch is applied as a target angle of attack relative to the flight path:
+Pitch is applied as a body-relative rate command:
 
-1. Start with `camera_pitch`.
-2. Clamp it through the max-lift AoA limiter when airspeed is high enough.
-3. Scale only pitch-down by bank angle.
-4. Build the target body basis from the resulting AoA and target bank.
+1. Start with the W/S pitch-rate command.
+2. Clamp the pitch delta through the max-lift AoA limiter when airspeed is high enough.
+3. Rotate the body around its current right axis by that limited pitch delta.
 
-Positive AoA/pitch-up is not reduced by bank. Negative AoA/pitch-down is reduced
-linearly as bank approaches the configured max bank:
+## Basis construction
 
-```gdscript
-bank_fraction = abs(target_bank_angle) / max_bank_angle
-scaled_pitch_down = target_aoa * (1.0 - bank_fraction)
-```
+Direct rotation uses the current body basis. AoA is still measured as the angle
+between the nose and the relative wind (velocity), never between the nose and
+the horizon:
 
-At zero bank, full camera-derived pitch-down applies. At max bank, pitch-down is
-zero. This prevents hard nose-down input at knife-edge/max-bank while preserving
-pitch-up authority.
+- Pitch rotates around `global_basis.x`.
+- Roll rotates around `-global_basis.z`.
+- Slip/skid compensation then yaws around `global_basis.y`.
 
-## High-bank alignment path
-
-There are two direct-rotation construction paths:
-
-- Below `HIGH_BANK_AOA_ALIGNMENT_START_RAD` (`60°`), target forward is built from
-  horizontal heading plus AoA against world up, then banked around that forward
-  axis.
-- At higher bank, target right/up are built around the actual airflow direction,
-  then AoA is applied around target right.
-
-The high-bank path keeps camera pitch behaving as character-relative AoA even
-near knife-edge. A camera pitch above neutral pitches in body-relative up; a
-camera pitch below neutral pitches in body-relative down, subject to the
-pitch-down bank scaling described above.
+S pitches in body-relative up; W pitches in body-relative down. A/D roll around
+the nose. The AoA limiter still applies at any roll angle, including knife-edge.
 
 ## Skid / slip measurement
 
@@ -166,12 +164,11 @@ The max-lift AoA limiter is derived from the lift coefficient table:
   coefficient.
 - If one side is missing, it mirrors the other side.
 
-When airspeed is below `MAX_LIFT_AOA_MIN_AIRSPEED`, camera pitch is used
-directly. At or above that speed, requested camera pitch is clamped to the
-derived negative/positive max-lift AoA range before bank-dependent pitch-down
-scaling.
+When airspeed is below `MAX_LIFT_AOA_MIN_AIRSPEED`, the W/S pitch delta is used
+directly. At or above that speed, the requested pitch delta is clamped so the
+resulting AoA stays inside the derived negative/positive max-lift range.
 
-This means camera pitch requests AoA, but the limiter prevents requesting beyond
+This means W/S requests AoA, but the limiter prevents requesting beyond
 the stall-side peak of the configured lift curve at meaningful airspeed.
 
 ## Aerodynamic forces
@@ -221,14 +218,13 @@ The flight settings exposed in `scripts/settings.gd` are:
 | Setting | Effect |
 |---|---|
 | `Field of view` | Camera FOV |
-| `Mouse sensitivity` | Camera yaw/pitch sensitivity |
+| `Mouse sensitivity` | Orbit camera yaw/pitch sensitivity |
 | `Camera distance` | Spring arm length |
 | `Gravity scale` | Multiplier on project gravity |
 | `Mass` | Divisor for force-to-velocity integration |
 | `Flap impulse strength` | Instant flap velocity delta |
 | `Flap impulse angle` | Forward/up blend for flap impulse |
 | `Flap cooldown` | Minimum time between flap impulses |
-| `Max bank angle` | Clamp on target bank, range `0°..90°` |
 | `Sideslip compensation` | Enables/disables local yaw weathervaning |
 | `Sideslip yaw step` | Max compensation yaw per physics frame |
 | `Reference area` | Scales aerodynamic lift/drag |

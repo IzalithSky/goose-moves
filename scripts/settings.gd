@@ -98,7 +98,6 @@ const FLIGHT_SETTING_DEFS: Array[Dictionary] = [
 	{"key": "flap_impulse_strength", "label": "Flap impulse strength", "default": FLIGHT_CC.DEFAULT_FLAP_IMPULSE_STRENGTH, "min": 0.0, "max": 50.0, "step": 0.1, "format": "%.1f", "suffix": " m/s"},
 	{"key": "flap_impulse_angle", "label": "Flap impulse angle", "default": FLIGHT_CC.DEFAULT_FLAP_IMPULSE_ANGLE_DEGREES, "min": 0.0, "max": 90.0, "step": 1.0, "format": "%.0f", "suffix": "°"},
 	{"key": "flap_cooldown", "label": "Flap cooldown", "default": FLIGHT_CC.DEFAULT_FLAP_COOLDOWN, "min": 0.0, "max": 5.0, "step": 0.05, "format": "%.2f", "suffix": " s"},
-	{"key": "max_bank_angle", "label": "Max bank angle", "default": FLIGHT_CC.DEFAULT_MAX_BANK_ANGLE_DEGREES, "min": 0.0, "max": 90.0, "step": 1.0, "format": "%.0f", "suffix": "°"},
 	{"key": "sideslip_compensation", "label": "Sideslip compensation", "default": FLIGHT_CC.DEFAULT_SIDESLIP_COMPENSATION_ENABLED, "min": 0.0, "max": 1.0, "step": 1.0, "control": "toggle"},
 	{"key": "sideslip_compensation_max_yaw", "label": "Sideslip yaw step", "default": FLIGHT_CC.DEFAULT_SIDESLIP_COMPENSATION_MAX_YAW_DEGREES, "min": 0.0, "max": 180.0, "step": 1.0, "format": "%.0f", "suffix": "°/frame"},
 	{"key": "reference_area", "label": "Reference area", "default": FLIGHT_CC.DEFAULT_REFERENCE_AREA, "min": 0.1, "max": 50.0, "step": 0.1, "format": "%.1f", "suffix": " m²"},

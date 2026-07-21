@@ -1,13 +1,6 @@
 extends "res://tests/q3_test.gd"
-# Flight controller: a held bank must turn the aircraft toward the look
-# direction. Lift is applied along the body up axis, so banking tilts the lift
-# vector; its horizontal component curves the velocity, and the heading
-# weathervanes onto that velocity — so the aircraft comes round.
-#
-# Regression guard for the frozen-yaw bug: seeding the heading from the body's
-# own -Z kept the yaw constant, so a bank built sideslip but never turned (0
-# deg/s). Here the only horizontal force is banked lift (no thrust/flap is
-# triggered), so any heading change is that lift turning the plane.
+# Flight controller: keyboard pitch requests AoA, A/D rolls the aircraft without
+# a bank clamp, and slip/skid compensation coordinates the resulting turn.
 #
 # Frame model (see docs/testing.md): this node parents the controller and runs
 # first, so state set here is seen by the controller the same frame.
@@ -15,7 +8,6 @@ extends "res://tests/q3_test.gd"
 const CONTROLLER_SCENE := preload("res://scenes/flight_controller.tscn")
 
 var c
-var baseline_error_deg := 0.0
 var max_bank_deg := 0.0
 var max_abs_sideslip_deg := 0.0
 
@@ -34,17 +26,20 @@ func _ready() -> void:
 	c.flap_impulse_angle_rad = deg_to_rad(c.DEFAULT_FLAP_IMPULSE_ANGLE_DEGREES)
 	c.flap_cooldown = c.DEFAULT_FLAP_COOLDOWN
 	c.flap_cooldown_remaining = 0.0
-	c.max_bank_angle_rad = deg_to_rad(90.0)
 	c.sideslip_compensation_enabled = c.DEFAULT_SIDESLIP_COMPENSATION_ENABLED >= 0.5
 	c.sideslip_compensation_max_yaw_rad = deg_to_rad(c.DEFAULT_SIDESLIP_COMPENSATION_MAX_YAW_DEGREES)
 	# High up with nothing to collide with: pure airborne flight.
 	c.global_transform = Transform3D(Basis.IDENTITY, Vector3(0, 200, 0))
 	c.velocity = Vector3(0, 0, -18.0)
-	# Look ~35 deg off the current heading (drives the bank) with the nose held
-	# above the flight path (positive AoA -> lift to bank with).
-	c.camera_yaw = deg_to_rad(35.0)
-	c.camera_pitch = deg_to_rad(12.0)
+	c.camera_yaw = 0.0
+	c.camera_pitch = deg_to_rad(-15.0)
 	c._apply_camera_rotation()
+	Input.action_release("player_forward")
+	Input.action_release("player_back")
+	Input.action_release("player_left")
+	Input.action_release("player_right")
+	Input.action_press("player_back")
+	Input.action_press("player_right")
 
 
 func _flat_dir(v: Vector3) -> Vector3:
@@ -54,37 +49,37 @@ func _flat_dir(v: Vector3) -> Vector3:
 	return v.normalized()
 
 
-func _alignment_error_deg() -> float:
-	return rad_to_deg(_flat_dir(-c.global_basis.z).angle_to(_flat_dir(-c.camera.global_basis.z)))
+func _heading_change_from_start_deg() -> float:
+	return rad_to_deg(_flat_dir(Vector3(0.0, 0.0, -1.0)).angle_to(_flat_dir(c.velocity)))
 
 
-func _horizontal_speed() -> float:
-	return Vector2(c.velocity.x, c.velocity.z).length()
-
-
-func _check_knife_edge_pitch(requested_pitch_deg: float, expected_aoa_deg: float) -> void:
+func _check_knife_edge_pitch(test_name: String, pitch_input: float, expected_aoa_deg: float) -> void:
 	var saved_basis: Basis = c.global_basis
 	var saved_velocity: Vector3 = c.velocity
 	var saved_camera_yaw: float = c.camera_yaw
 	var saved_camera_pitch: float = c.camera_pitch
-	var saved_bank_limit: float = c.max_bank_angle_rad
+	var saved_pitch_input: float = c.pitch_control_input
+	var saved_roll_input: float = c.roll_control_input
 	var saved_max_yaw: float = c.sideslip_compensation_max_yaw_rad
-	c.global_basis = Basis.IDENTITY
+	c.global_basis = (Basis(Vector3(0.0, 0.0, -1.0), deg_to_rad(90.0)) * Basis.IDENTITY).orthonormalized()
 	c.velocity = Vector3(0.0, 0.0, -18.0)
-	c.camera_yaw = PI
-	c.camera_pitch = deg_to_rad(requested_pitch_deg)
-	c.max_bank_angle_rad = deg_to_rad(90.0)
+	c.camera_yaw = 0.0
+	c.camera_pitch = deg_to_rad(-15.0)
+	c.pitch_control_input = pitch_input
+	c.roll_control_input = 0.0
 	c.sideslip_compensation_max_yaw_rad = PI
 	c._apply_camera_rotation()
-	c._apply_direct_rotation()
 	c._update_aero_angles()
-	check_approx("knife-edge AoA follows character pitch", c.aoa_deg, expected_aoa_deg, 0.1)
+	c._apply_direct_rotation(1.0)
+	c._update_aero_angles()
+	check_approx(test_name + " AoA is limited at knife edge", c.aoa_deg, expected_aoa_deg, 0.1)
 	check_approx("knife-edge sideslip is compensated", c.sideslip_deg, 0.0, 0.1)
 	c.global_basis = saved_basis
 	c.velocity = saved_velocity
 	c.camera_yaw = saved_camera_yaw
 	c.camera_pitch = saved_camera_pitch
-	c.max_bank_angle_rad = saved_bank_limit
+	c.pitch_control_input = saved_pitch_input
+	c.roll_control_input = saved_roll_input
 	c.sideslip_compensation_max_yaw_rad = saved_max_yaw
 	c._apply_camera_rotation()
 	c._update_aero_angles()
@@ -111,40 +106,111 @@ func _check_sideslip_compensation(test_name: String, basis: Basis, test_velocity
 	c._update_aero_angles()
 
 
-func _check_bank_limit(limit_deg: float) -> void:
+func _check_pitch_uses_body_right_axis() -> void:
 	var saved_basis: Basis = c.global_basis
 	var saved_velocity: Vector3 = c.velocity
 	var saved_camera_yaw: float = c.camera_yaw
 	var saved_camera_pitch: float = c.camera_pitch
-	var saved_bank_limit: float = c.max_bank_angle_rad
-	c.global_basis = Basis.IDENTITY
-	c.velocity = Vector3(0.0, 0.0, -18.0)
-	c.camera_yaw = PI
+	var saved_pitch_input: float = c.pitch_control_input
+	var saved_roll_input: float = c.roll_control_input
+	c.global_basis = (Basis(Vector3(0.0, 0.0, -1.0), deg_to_rad(90.0)) * Basis.IDENTITY).orthonormalized()
+	var before_basis: Basis = c.global_basis
+	var pitch_delta := deg_to_rad(30.0)
+	var expected_basis := (Basis(before_basis.x.normalized(), pitch_delta) * before_basis).orthonormalized()
+	c.velocity = Vector3.ZERO
+	c.camera_yaw = 0.0
 	c.camera_pitch = 0.0
-	c.max_bank_angle_rad = deg_to_rad(limit_deg)
+	c.pitch_control_input = 1.0
+	c.roll_control_input = 0.0
 	c._apply_camera_rotation()
-	c._apply_direct_rotation()
-	var bank_deg: float = absf(rad_to_deg(asin(clampf(c.global_basis.x.y, -1.0, 1.0))))
-	check_approx("bank limit applies at %.0f degrees" % limit_deg, bank_deg, limit_deg, 0.1)
+	c._apply_direct_rotation(pitch_delta / c.pitch_rate_rad)
+	check_vec3("S pitches around body right", -c.global_basis.z, -expected_basis.z, 0.001)
+	check_vec3("body-right pitch preserves body right axis", c.global_basis.x, expected_basis.x, 0.001)
 	c.global_basis = saved_basis
 	c.velocity = saved_velocity
 	c.camera_yaw = saved_camera_yaw
 	c.camera_pitch = saved_camera_pitch
-	c.max_bank_angle_rad = saved_bank_limit
+	c.pitch_control_input = saved_pitch_input
+	c.roll_control_input = saved_roll_input
 	c._apply_camera_rotation()
 	c._update_aero_angles()
 
 
-func _check_pitch_down_bank_scaling() -> void:
-	var saved_bank_limit: float = c.max_bank_angle_rad
-	c.max_bank_angle_rad = deg_to_rad(90.0)
-	var pitch_down: float = deg_to_rad(-30.0)
-	var pitch_up: float = deg_to_rad(30.0)
-	check_approx("pitch down is full at zero bank", rad_to_deg(c._get_bank_scaled_aoa(pitch_down, 0.0)), -30.0, 0.001)
-	check_approx("pitch down is half at half bank", rad_to_deg(c._get_bank_scaled_aoa(pitch_down, deg_to_rad(45.0))), -15.0, 0.001)
-	check_approx("pitch down is zero at max bank", rad_to_deg(c._get_bank_scaled_aoa(pitch_down, deg_to_rad(90.0))), 0.0, 0.001)
-	check_approx("pitch up ignores bank scaling", rad_to_deg(c._get_bank_scaled_aoa(pitch_up, deg_to_rad(90.0))), 30.0, 0.001)
-	c.max_bank_angle_rad = saved_bank_limit
+func _check_key_pitch_aoa_limiter() -> void:
+	var saved_basis: Basis = c.global_basis
+	var saved_velocity: Vector3 = c.velocity
+	var saved_pitch_input: float = c.pitch_control_input
+	var saved_roll_input: float = c.roll_control_input
+	c.global_basis = Basis.IDENTITY
+	c.velocity = Vector3(0.0, 0.0, -18.0)
+	c.pitch_control_input = 1.0
+	c.roll_control_input = 0.0
+	c._update_aero_angles()
+	c._apply_direct_rotation(1.0)
+	c._update_aero_angles()
+	check_approx(
+		"S pitch-up command is max-lift limited",
+		c.aoa_deg,
+		c._positive_max_lift_aoa_deg,
+		0.1
+	)
+	c.global_basis = Basis.IDENTITY
+	c.velocity = Vector3(0.0, 0.0, -18.0)
+	c.pitch_control_input = -1.0
+	c._update_aero_angles()
+	c._apply_direct_rotation(1.0)
+	c._update_aero_angles()
+	check_approx(
+		"W pitch-down command is max-lift limited",
+		c.aoa_deg,
+		c._negative_max_lift_aoa_deg,
+		0.1
+	)
+	c.global_basis = saved_basis
+	c.velocity = saved_velocity
+	c.pitch_control_input = saved_pitch_input
+	c.roll_control_input = saved_roll_input
+	c._update_aero_angles()
+
+
+func _check_roll_input_has_no_bank_limit() -> void:
+	var saved_basis: Basis = c.global_basis
+	var saved_velocity: Vector3 = c.velocity
+	var saved_pitch_input: float = c.pitch_control_input
+	var saved_roll_input: float = c.roll_control_input
+	c.global_basis = Basis.IDENTITY
+	c.velocity = Vector3.ZERO
+	c.pitch_control_input = 0.0
+	c.roll_control_input = 1.0
+	c._apply_direct_rotation(deg_to_rad(90.0) / c.roll_rate_rad)
+	check_approx("D rolls to knife edge without bank clamp", absf(c.global_basis.x.y), 1.0, 0.01)
+	c.global_basis = saved_basis
+	c.velocity = saved_velocity
+	c.pitch_control_input = saved_pitch_input
+	c.roll_control_input = saved_roll_input
+	c._update_aero_angles()
+
+
+func _check_roll_uses_body_forward_axis() -> void:
+	var saved_basis: Basis = c.global_basis
+	var saved_velocity: Vector3 = c.velocity
+	var saved_pitch_input: float = c.pitch_control_input
+	var saved_roll_input: float = c.roll_control_input
+	c.global_basis = (Basis(Vector3.RIGHT, deg_to_rad(35.0)) * Basis.IDENTITY).orthonormalized()
+	var before_basis: Basis = c.global_basis
+	var roll_delta := deg_to_rad(30.0)
+	var expected_basis := (Basis((-before_basis.z).normalized(), roll_delta) * before_basis).orthonormalized()
+	c.velocity = Vector3.ZERO
+	c.pitch_control_input = 0.0
+	c.roll_control_input = 1.0
+	c._apply_direct_rotation(roll_delta / c.roll_rate_rad)
+	check_vec3("D rolls around body forward", c.global_basis.x, expected_basis.x, 0.001)
+	check_vec3("body-forward roll preserves nose axis", -c.global_basis.z, -expected_basis.z, 0.001)
+	c.global_basis = saved_basis
+	c.velocity = saved_velocity
+	c.pitch_control_input = saved_pitch_input
+	c.roll_control_input = saved_roll_input
+	c._update_aero_angles()
 
 
 func _signed_yaw_delta_deg(before_basis: Basis, after_basis: Basis) -> float:
@@ -242,17 +308,20 @@ func _check_flap_impulse() -> void:
 
 func step() -> void:
 	# Bank angle: how far the body right axis has tilted out of horizontal.
-	max_bank_deg = maxf(max_bank_deg, rad_to_deg(asin(clampf(c.global_basis.x.y, -1.0, 1.0))))
+	max_bank_deg = maxf(max_bank_deg, absf(rad_to_deg(asin(clampf(c.global_basis.x.y, -1.0, 1.0)))))
 	# Track worst skid once past the initial settling transient.
 	if frame > 30:
 		max_abs_sideslip_deg = maxf(max_abs_sideslip_deg, absf(c.sideslip_deg))
 
 	if frame == 3:
-		baseline_error_deg = _alignment_error_deg()
-		check("starts misaligned with the look direction", baseline_error_deg > 25.0)
-		_check_knife_edge_pitch(45.0, c._positive_max_lift_aoa_deg)
-		_check_knife_edge_pitch(-45.0, 0.0)
-		_check_pitch_down_bank_scaling()
+		check("S maps to pitch-up input", c.pitch_control_input > 0.9)
+		check("D maps to roll-right input", c.roll_control_input > 0.9)
+		_check_knife_edge_pitch("S pitch-up", 1.0, c._positive_max_lift_aoa_deg)
+		_check_knife_edge_pitch("W pitch-down", -1.0, c._negative_max_lift_aoa_deg)
+		_check_pitch_uses_body_right_axis()
+		_check_key_pitch_aoa_limiter()
+		_check_roll_input_has_no_bank_limit()
+		_check_roll_uses_body_forward_axis()
 		_check_sideslip_compensation("forward axial sideslip", Basis.IDENTITY, Vector3(4.0, 0.0, -10.0))
 		_check_sideslip_compensation("negative axial sideslip", Basis.IDENTITY, Vector3(3.0, 0.0, 8.0))
 		var banked_basis := Basis(Vector3.FORWARD, deg_to_rad(90.0))
@@ -261,20 +330,21 @@ func step() -> void:
 			banked_basis,
 			(-banked_basis.z * -8.0) + (banked_basis.x * 3.0) + (banked_basis.y * 5.0)
 		)
-		_check_bank_limit(30.0)
-		_check_bank_limit(c.DEFAULT_MAX_BANK_ANGLE_DEGREES)
 		_check_sideslip_yaw_limit()
 		_check_sideslip_compensation_toggle()
 		_check_flap_impulse()
 
-	if frame >= 540:
-		# A frozen-yaw controller leaves the error unchanged; a weathervaning one
-		# curves the heading toward the look direction under banked lift.
-		check("banked lift turns the heading toward the look direction",
-			_alignment_error_deg() < baseline_error_deg - 10.0)
-		check("aircraft rolled into a bank while turning", max_bank_deg > 3.0)
-		check("still flying (horizontal speed retained)", _horizontal_speed() > 3.0)
+	if frame == 30:
+		Input.action_release("player_right")
+
+	if frame >= 180:
+		Input.action_release("player_back")
+		Input.action_release("player_right")
+		check("banked lift turns the heading from the original path",
+			_heading_change_from_start_deg() > 10.0)
+		check("keyboard roll banks past the former 45 degree clamp", max_bank_deg > 45.0)
+		check("still flying (airspeed retained)", c.velocity.length() > 3.0)
 		# Auto-yaw sideslip compensation: the banked turn stays coordinated.
 		check("banked turn keeps limited sideslip bounded",
-			max_abs_sideslip_deg < 5.0)
+			max_abs_sideslip_deg < 15.0)
 		finish()

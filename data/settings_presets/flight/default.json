@@ -8,12 +8,19 @@
 		"camera_distance": 5.0,
 		"gravity_scale": 0.15,
 		"mass": 4.0,
-		"max_thrust": 18.8,
-		"flap_duration": 1.0,
+		"flap_impulse_strength": 4.7,
+		"flap_impulse_angle": 45.0,
+		"flap_cooldown": 0.5,
+		"sideslip_compensation": 1.0,
+		"sideslip_compensation_max_yaw": 0.1,
 		"reference_area": 0.275,
 		"extra_linear_drag_quadratic_coefficient": 0.015
 	},
 	"keybindings": {
+		"player_forward": [87, -1],
+		"player_back": [83, -1],
+		"player_left": [65, -1],
+		"player_right": [68, -1],
 		"player_jump": [32, -1]
 	}
 }

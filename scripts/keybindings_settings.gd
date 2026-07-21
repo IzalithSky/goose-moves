@@ -43,6 +43,10 @@ const PLATFORMER_ACTIONS: Array[String] = [
 	"player_special",
 ]
 const FLIGHT_ACTIONS: Array[String] = [
+	"player_forward",
+	"player_back",
+	"player_left",
+	"player_right",
 	"player_jump",
 ]
 const Q3_ACTION_LABELS := {
@@ -73,6 +77,10 @@ const PLATFORMER_ACTION_LABELS := {
 	"player_special": "Dive / Attack",
 }
 const FLIGHT_ACTION_LABELS := {
+	"player_forward": "Pitch Down",
+	"player_back": "Pitch Up",
+	"player_left": "Roll Left",
+	"player_right": "Roll Right",
 	"player_jump": "Flap / Jump",
 }
 const DEFAULT_BINDINGS := {

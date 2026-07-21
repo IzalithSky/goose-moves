@@ -26,6 +26,8 @@ func _ready() -> void:
 	c.flap_impulse_angle_rad = deg_to_rad(c.DEFAULT_FLAP_IMPULSE_ANGLE_DEGREES)
 	c.flap_cooldown = c.DEFAULT_FLAP_COOLDOWN
 	c.flap_cooldown_remaining = 0.0
+	c.camera_fly_by_wire_enabled = false
+	c.camera_fly_by_wire_target_distance = c.DEFAULT_CAMERA_FLY_BY_WIRE_TARGET_DISTANCE
 	c.sideslip_compensation_enabled = c.DEFAULT_SIDESLIP_COMPENSATION_ENABLED >= 0.5
 	c.sideslip_compensation_max_yaw_rad = deg_to_rad(c.DEFAULT_SIDESLIP_COMPENSATION_MAX_YAW_DEGREES)
 	# High up with nothing to collide with: pure airborne flight.
@@ -213,6 +215,63 @@ func _check_roll_uses_body_forward_axis() -> void:
 	c._update_aero_angles()
 
 
+func _check_camera_target_fallback() -> void:
+	var saved_transform: Transform3D = c.global_transform
+	var saved_camera_yaw: float = c.camera_yaw
+	var saved_camera_pitch: float = c.camera_pitch
+	var saved_target_distance: float = c.camera_fly_by_wire_target_distance
+	c.global_transform = Transform3D(Basis.IDENTITY, Vector3(0.0, 200.0, 0.0))
+	c.camera_yaw = deg_to_rad(35.0)
+	c.camera_pitch = 0.0
+	c.camera_fly_by_wire_target_distance = 80.0
+	c._apply_camera_rotation()
+	var expected: Vector3 = c.camera.global_position + (-c.camera.global_basis.z * c.camera_fly_by_wire_target_distance)
+	check_vec3("camera FBW target falls back along camera look", c._get_camera_target_point(), expected, 0.001)
+	c.global_transform = saved_transform
+	c.camera_yaw = saved_camera_yaw
+	c.camera_pitch = saved_camera_pitch
+	c.camera_fly_by_wire_target_distance = saved_target_distance
+	c._apply_camera_rotation()
+
+
+func _check_camera_rig_is_elevated() -> void:
+	var expected_position: Vector3 = c.global_position + (Vector3.UP * c.DEFAULT_CAMERA_HEIGHT)
+	check_vec3("flight camera rig follows above the character", c.camera_rig.global_position, expected_position, 0.001)
+
+
+func _check_fly_by_wire_uses_body_target_direction() -> void:
+	var saved_basis: Basis = c.global_basis
+	var saved_position: Vector3 = c.global_position
+	var saved_velocity: Vector3 = c.velocity
+	var saved_pitch_input: float = c.pitch_control_input
+	var saved_roll_input: float = c.roll_control_input
+	c.global_transform = Transform3D(Basis.IDENTITY, Vector3(0.0, 200.0, 0.0))
+	c.velocity = Vector3(0.0, 0.0, -18.0)
+	c.pitch_control_input = 0.0
+	c.roll_control_input = 0.0
+	c._update_fly_by_wire_inputs_for_target(1.0, c.global_position + (c.global_basis.x * 100.0))
+	check("camera FBW rolls right toward body-right target", c.roll_control_input > 0.1)
+	check("camera FBW pulls while rolling toward side target", c.pitch_control_input > 0.1)
+
+	c.pitch_control_input = 0.0
+	c.roll_control_input = 0.0
+	c._update_fly_by_wire_inputs_for_target(1.0, c.global_position + (c.global_basis.y * 100.0))
+	check("camera FBW pulls up toward body-up target", c.pitch_control_input > 0.1)
+	check("camera FBW does not roll for body-up target", absf(c.roll_control_input) < 0.01)
+
+	c.global_basis = (Basis(Vector3.RIGHT, deg_to_rad(35.0)) * Basis.IDENTITY).orthonormalized()
+	c.pitch_control_input = 0.0
+	c.roll_control_input = 0.0
+	c._update_fly_by_wire_inputs_for_target(1.0, c.global_position + (c.global_basis.x * 100.0))
+	check("camera FBW side target remains body-relative when pitched", c.roll_control_input > 0.1)
+	c.global_basis = saved_basis
+	c.global_position = saved_position
+	c.velocity = saved_velocity
+	c.pitch_control_input = saved_pitch_input
+	c.roll_control_input = saved_roll_input
+	c._update_aero_angles()
+
+
 func _signed_yaw_delta_deg(before_basis: Basis, after_basis: Basis) -> float:
 	var before_forward: Vector3 = -before_basis.z
 	var after_forward: Vector3 = -after_basis.z
@@ -322,6 +381,9 @@ func step() -> void:
 		_check_key_pitch_aoa_limiter()
 		_check_roll_input_has_no_bank_limit()
 		_check_roll_uses_body_forward_axis()
+		_check_camera_rig_is_elevated()
+		_check_camera_target_fallback()
+		_check_fly_by_wire_uses_body_target_direction()
 		_check_sideslip_compensation("forward axial sideslip", Basis.IDENTITY, Vector3(4.0, 0.0, -10.0))
 		_check_sideslip_compensation("negative axial sideslip", Basis.IDENTITY, Vector3(3.0, 0.0, 8.0))
 		var banked_basis := Basis(Vector3.FORWARD, deg_to_rad(90.0))

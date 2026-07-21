@@ -2,6 +2,7 @@ class_name FlightController
 extends CharacterBody3D
 
 const DEFAULT_CAMERA_DISTANCE := 5.0
+const DEFAULT_CAMERA_HEIGHT := 1.6
 const DEFAULT_GRAVITY_SCALE := 0.15
 const DEFAULT_MASS := 4.0
 const DEFAULT_FLAP_IMPULSE_STRENGTH := 4.7
@@ -9,8 +10,23 @@ const DEFAULT_FLAP_IMPULSE_ANGLE_DEGREES := 45.0
 const DEFAULT_FLAP_COOLDOWN := 0.5
 const DEFAULT_PITCH_RATE_DEGREES_PER_SECOND := 120.0
 const DEFAULT_ROLL_RATE_DEGREES_PER_SECOND := 120.0
+const DEFAULT_CAMERA_FLY_BY_WIRE_ENABLED := 1.0
+const DEFAULT_CAMERA_FLY_BY_WIRE_TARGET_DISTANCE := 120.0
 const DEFAULT_SIDESLIP_COMPENSATION_ENABLED := 1.0
 const DEFAULT_SIDESLIP_COMPENSATION_MAX_YAW_DEGREES := 0.1
+const FBW_DIRECTION_PITCH_RESPONSE_RATE := 0.6
+const FBW_LEVEL_TURN_ROLL_RESPONSE_RATE := 0.9
+const FBW_LEVEL_TURN_ROLL_GAIN := 1.4
+const FBW_WINGS_LEVEL_ROLL_GAIN := 1.2
+const FBW_ROLL_MAX_DESIRED_RATE := 1.8
+const FBW_TURN_FULL_PULL_ANGLE_RAD := PI * 0.5
+const FBW_TURN_ROLLOUT_ANGLE_RAD := PI / 4.0
+const FBW_TURN_MIN_UNALIGNED_PULL_RATIO := 0.25
+const FBW_TURN_PITCH_ANGLE_TO_RATE_GAIN := 0.85
+const FBW_TURN_MAX_DESIRED_PITCH_RATE := 1.4
+const FBW_TURN_MIN_PULL_ANGLE_RAD := 0.02
+const FBW_TURN_ANGLE_DEADBAND_RAD := PI / 180.0
+const FBW_WINGS_LEVEL_DEADBAND_RAD := PI / 180.0
 const Q3_FLOOR_FRICTION := 6.0
 const Q3_FLOOR_STOP_SPEED := 3.81
 const FLOOR_NORMAL_Y := 0.7
@@ -72,6 +88,8 @@ var flap_impulse_angle_rad := deg_to_rad(DEFAULT_FLAP_IMPULSE_ANGLE_DEGREES)
 var flap_cooldown := DEFAULT_FLAP_COOLDOWN
 var pitch_rate_rad := deg_to_rad(DEFAULT_PITCH_RATE_DEGREES_PER_SECOND)
 var roll_rate_rad := deg_to_rad(DEFAULT_ROLL_RATE_DEGREES_PER_SECOND)
+var camera_fly_by_wire_enabled := DEFAULT_CAMERA_FLY_BY_WIRE_ENABLED >= 0.5
+var camera_fly_by_wire_target_distance := DEFAULT_CAMERA_FLY_BY_WIRE_TARGET_DISTANCE
 var sideslip_compensation_enabled := DEFAULT_SIDESLIP_COMPENSATION_ENABLED >= 0.5
 var sideslip_compensation_max_yaw_rad := deg_to_rad(DEFAULT_SIDESLIP_COMPENSATION_MAX_YAW_DEGREES)
 var mouse_sensitivity := Settings.DEFAULT_MOUSE_SENSITIVITY
@@ -106,7 +124,7 @@ func _process(_delta: float) -> void:
 
 func _physics_process(delta: float) -> void:
 	flap_cooldown_remaining = maxf(flap_cooldown_remaining - delta, 0.0)
-	_collect_inputs()
+	_collect_inputs(delta)
 	_update_aero_angles()
 	var total_force := _get_gravity_force() + _get_aerodynamic_force() + _get_extra_drag_force()
 	velocity += (total_force / maxf(mass, 0.001)) * delta
@@ -131,7 +149,7 @@ func _input(event: InputEvent) -> void:
 
 func _apply_camera_rotation() -> void:
 	if camera_rig != null:
-		camera_rig.global_position = global_position
+		camera_rig.global_position = global_position + (Vector3.UP * DEFAULT_CAMERA_HEIGHT)
 		camera_rig.global_rotation = Vector3(camera_pitch, camera_yaw, 0.0)
 
 
@@ -152,9 +170,12 @@ func on_settings_changed() -> void:
 	_apply_controller_settings()
 
 
-func _collect_inputs() -> void:
-	pitch_control_input = Input.get_action_strength("player_back") - Input.get_action_strength("player_forward")
-	roll_control_input = Input.get_action_strength("player_right") - Input.get_action_strength("player_left")
+func _collect_inputs(delta: float) -> void:
+	if camera_fly_by_wire_enabled:
+		_update_camera_fly_by_wire_inputs(delta)
+	else:
+		pitch_control_input = Input.get_action_strength("player_back") - Input.get_action_strength("player_forward")
+		roll_control_input = Input.get_action_strength("player_right") - Input.get_action_strength("player_left")
 	if Input.is_action_just_pressed("player_jump"):
 		_try_flap_impulse()
 
@@ -222,6 +243,113 @@ func _get_extra_drag_force() -> Vector3:
 	var linear_component := DEFAULT_EXTRA_LINEAR_DRAG_LINEAR_COEFFICIENT * air_speed
 	var quadratic_component := extra_linear_drag_quadratic_coefficient * speed_squared
 	return -direction * reference_area * (linear_component + quadratic_component)
+
+
+func _update_camera_fly_by_wire_inputs(delta: float) -> void:
+	_update_fly_by_wire_inputs_for_target(delta, _get_camera_target_point())
+
+
+func _get_camera_target_point() -> Vector3:
+	if camera == null:
+		return global_position + (-global_basis.z * camera_fly_by_wire_target_distance)
+	var origin := camera.global_position
+	var direction := (-camera.global_basis.z).normalized()
+	var fallback := origin + direction * maxf(camera_fly_by_wire_target_distance, 1.0)
+	var world := get_world_3d()
+	if world == null:
+		return fallback
+	var query := PhysicsRayQueryParameters3D.create(origin, fallback)
+	query.exclude = [get_rid()]
+	var hit := world.direct_space_state.intersect_ray(query)
+	return hit.get("position", fallback) as Vector3
+
+
+func _update_fly_by_wire_inputs_for_target(delta: float, target_point: Vector3) -> void:
+	var frame_basis := global_basis.orthonormalized()
+	var direction := _get_safe_world_direction(target_point - global_position, -frame_basis.z)
+	var local_direction := frame_basis.transposed() * direction
+	var turn_angle := _get_local_turn_angle(local_direction)
+	var roll_target := _get_wings_level_roll_target(frame_basis)
+	var pitch_target := 0.0
+	if turn_angle > FBW_TURN_ANGLE_DEADBAND_RAD:
+		roll_target = _get_lift_vector_roll_target(local_direction, turn_angle, frame_basis)
+		pitch_target = _get_lift_aligned_pitch_target(turn_angle, local_direction)
+	_move_fly_by_wire_inputs(delta, roll_target, pitch_target)
+
+
+func _get_safe_world_direction(direction: Vector3, fallback: Vector3) -> Vector3:
+	if direction.length_squared() <= MIN_DIRECTION_VECTOR_LENGTH_SQUARED:
+		return fallback.normalized()
+	return direction.normalized()
+
+
+func _get_local_turn_angle(local_direction: Vector3) -> float:
+	var forward_alignment := clampf(-local_direction.z, -1.0, 1.0)
+	return acos(forward_alignment)
+
+
+func _get_lift_vector_roll_target(local_direction: Vector3, turn_angle: float, frame_basis: Basis) -> float:
+	var transverse_length_squared := local_direction.x * local_direction.x + local_direction.y * local_direction.y
+	if transverse_length_squared <= MIN_DIRECTION_VECTOR_LENGTH_SQUARED:
+		return _get_wings_level_roll_target(frame_basis)
+
+	var lift_vector_error := atan2(local_direction.x, local_direction.y)
+	var turn_ratio := clampf(turn_angle / FBW_TURN_FULL_PULL_ANGLE_RAD, 0.0, 1.0)
+	var lift_vector_roll := _get_roll_input_for_error(lift_vector_error, FBW_LEVEL_TURN_ROLL_GAIN, turn_ratio)
+	var rollout := 1.0 - clampf(turn_angle / FBW_TURN_ROLLOUT_ANGLE_RAD, 0.0, 1.0)
+	if rollout <= 0.0:
+		return lift_vector_roll
+	return lerpf(lift_vector_roll, _get_wings_level_roll_target(frame_basis), rollout)
+
+
+func _get_wings_level_roll_target(frame_basis: Basis) -> float:
+	var local_world_up := frame_basis.transposed() * Vector3.UP
+	var bank_error := atan2(local_world_up.x, local_world_up.y)
+	if absf(bank_error) <= FBW_WINGS_LEVEL_DEADBAND_RAD:
+		return 0.0
+	return _get_roll_input_for_error(bank_error, FBW_WINGS_LEVEL_ROLL_GAIN)
+
+
+func _get_roll_input_for_error(roll_error: float, angle_to_rate_gain: float, rate_scale := 1.0) -> float:
+	var desired_rate := clampf(
+		roll_error * angle_to_rate_gain * clampf(rate_scale, 0.0, 1.0),
+		-FBW_ROLL_MAX_DESIRED_RATE,
+		FBW_ROLL_MAX_DESIRED_RATE
+	)
+	return clampf(desired_rate / maxf(roll_rate_rad, 0.001), -1.0, 1.0)
+
+
+func _get_lift_aligned_pitch_target(turn_angle: float, local_direction: Vector3) -> float:
+	var pitch_target := _get_turn_pull_pitch_target(turn_angle)
+	var lift_alignment := _get_lift_alignment_factor(local_direction)
+	var curved_alignment := lift_alignment * lift_alignment
+	var pitch_scale := lerpf(FBW_TURN_MIN_UNALIGNED_PULL_RATIO, 1.0, curved_alignment)
+	return pitch_target * pitch_scale
+
+
+func _get_lift_alignment_factor(local_direction: Vector3) -> float:
+	var transverse_length := sqrt(local_direction.x * local_direction.x + local_direction.y * local_direction.y)
+	if transverse_length <= MIN_DIRECTION_VECTOR_LENGTH_SQUARED:
+		return 1.0
+	return clampf(local_direction.y / transverse_length, 0.0, 1.0)
+
+
+func _get_turn_pull_pitch_target(turn_angle: float) -> float:
+	if turn_angle <= FBW_TURN_MIN_PULL_ANGLE_RAD:
+		return 0.0
+	var desired_rate := clampf(
+		turn_angle * FBW_TURN_PITCH_ANGLE_TO_RATE_GAIN,
+		-FBW_TURN_MAX_DESIRED_PITCH_RATE,
+		FBW_TURN_MAX_DESIRED_PITCH_RATE
+	)
+	return clampf(desired_rate / maxf(pitch_rate_rad, 0.001), -1.0, 1.0)
+
+
+func _move_fly_by_wire_inputs(delta: float, roll_target: float, pitch_target: float) -> void:
+	var pitch_step := maxf(FBW_DIRECTION_PITCH_RESPONSE_RATE * delta, 0.0)
+	var roll_step := maxf(FBW_LEVEL_TURN_ROLL_RESPONSE_RATE * delta, pitch_step)
+	pitch_control_input = move_toward(pitch_control_input, clampf(pitch_target, -1.0, 1.0), pitch_step)
+	roll_control_input = move_toward(roll_control_input, clampf(roll_target, -1.0, 1.0), roll_step)
 
 
 func _apply_direct_rotation(delta := 0.0) -> void:
@@ -364,6 +492,8 @@ func _apply_controller_settings() -> void:
 	flap_impulse_angle_rad = deg_to_rad(Settings.get_controller_setting("flap_impulse_angle", Settings.CHARACTER_FLIGHT))
 	flap_cooldown = Settings.get_controller_setting("flap_cooldown", Settings.CHARACTER_FLIGHT)
 	flap_cooldown_remaining = minf(flap_cooldown_remaining, flap_cooldown)
+	camera_fly_by_wire_enabled = Settings.get_controller_setting("camera_fly_by_wire", Settings.CHARACTER_FLIGHT) >= 0.5
+	camera_fly_by_wire_target_distance = Settings.get_controller_setting("camera_fly_by_wire_target_distance", Settings.CHARACTER_FLIGHT)
 	sideslip_compensation_enabled = Settings.get_controller_setting("sideslip_compensation", Settings.CHARACTER_FLIGHT) >= 0.5
 	sideslip_compensation_max_yaw_rad = deg_to_rad(Settings.get_controller_setting("sideslip_compensation_max_yaw", Settings.CHARACTER_FLIGHT))
 	reference_area = Settings.get_controller_setting("reference_area", Settings.CHARACTER_FLIGHT)

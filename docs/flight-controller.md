@@ -11,7 +11,8 @@ time.
 `scripts/flight_controller.gd` runs the controller in this order:
 
 1. Decrement flap cooldown.
-2. Collect pitch/roll input (`player_jump` can apply a flap impulse).
+2. Collect pitch/roll input from camera FBW or manual fallback (`player_jump`
+   can apply a flap impulse).
 3. Measure current angle of attack and sideslip from local velocity.
 4. Apply gravity, aerodynamic lift/drag, and extra drag to velocity.
 5. Apply direct rotation from pitch/roll input around the current body axes.
@@ -48,14 +49,35 @@ Mouse input updates a detached camera rig:
 
 - Horizontal mouse changes `camera_yaw`.
 - Vertical mouse changes `camera_pitch`, clamped to `-75°..60°`.
-- The camera rig is top-level and follows character position.
+- The camera rig is top-level and follows a point above the character, so the
+  body sits below the look ray instead of obscuring the target.
 
-Mouse/camera movement is view-only for flight. It no longer drives pitch, roll,
-or bank.
+With `Camera fly-by-wire` enabled, the camera look ray defines a virtual
+checkpoint. If the ray hits world geometry, that hit is the target. Otherwise,
+the target is `FBW target distance` meters along the camera look direction.
+The controller then flies the character toward that target by changing only the
+pitch and roll command inputs.
+
+With `Camera fly-by-wire` disabled, mouse/camera movement is view-only and
+manual W/S/A/D pitch/roll controls are used.
+
+## Camera fly-by-wire
+
+The camera FBW mode is a reduced port of Merlin's bot target-following control:
+
+1. Convert the world target direction into the character's local body basis.
+2. Measure the local turn angle from the body-forward axis.
+3. Roll to put the lift vector on the target bearing.
+4. Pull pitch in proportion to turn angle and lift-vector alignment.
+5. Smooth the resulting pitch and roll inputs before direct rotation.
+
+Only target following is ported. The flight controller does not use Merlin's
+collision avoidance, overspeed/underspeed handling, throttle management,
+engagement/aggro logic, or weapon behavior.
 
 ## Pitch and roll controls
 
-Flight uses the controller keybinding actions:
+When camera FBW is disabled, flight uses the controller keybinding actions:
 
 | Action | Default key | Effect |
 |---|---:|---|
@@ -80,9 +102,9 @@ roll_input = Input.get_action_strength("player_right") - Input.get_action_streng
 basis = Basis(body_forward, roll_input * DEFAULT_ROLL_RATE_DEGREES_PER_SECOND * delta) * basis
 ```
 
-These axes come from the character body basis at the start of the frame, matching
-Merlin's body-basis control torque mapping. They are not camera-relative or
-world-up-relative.
+Both the manual fallback and the camera FBW output are applied around the
+character body axes at the start of the frame, matching Merlin's body-basis
+control torque mapping. They are not camera-relative or world-up-relative.
 
 There is no bank limiter. Roll is only limited by the per-frame roll rate.
 
@@ -94,7 +116,7 @@ aircraft toward the local yaw-plane velocity.
 
 Pitch is applied as a body-relative rate command:
 
-1. Start with the W/S pitch-rate command.
+1. Start with the active pitch-rate command from camera FBW or manual W/S fallback.
 2. Clamp the pitch delta through the max-lift AoA limiter when airspeed is high enough.
 3. Rotate the body around its current right axis by that limited pitch delta.
 
@@ -164,12 +186,12 @@ The max-lift AoA limiter is derived from the lift coefficient table:
   coefficient.
 - If one side is missing, it mirrors the other side.
 
-When airspeed is below `MAX_LIFT_AOA_MIN_AIRSPEED`, the W/S pitch delta is used
-directly. At or above that speed, the requested pitch delta is clamped so the
+When airspeed is below `MAX_LIFT_AOA_MIN_AIRSPEED`, the active pitch delta is
+used directly. At or above that speed, the requested pitch delta is clamped so the
 resulting AoA stays inside the derived negative/positive max-lift range.
 
-This means W/S requests AoA, but the limiter prevents requesting beyond
-the stall-side peak of the configured lift curve at meaningful airspeed.
+This means pitch commands request AoA, but the limiter prevents requesting
+beyond the stall-side peak of the configured lift curve at meaningful airspeed.
 
 ## Aerodynamic forces
 
@@ -219,12 +241,14 @@ The flight settings exposed in `scripts/settings.gd` are:
 |---|---|
 | `Field of view` | Camera FOV |
 | `Mouse sensitivity` | Orbit camera yaw/pitch sensitivity |
-| `Camera distance` | Spring arm length |
+| `Camera distance` | Spring arm length from the elevated chase pivot |
 | `Gravity scale` | Multiplier on project gravity |
 | `Mass` | Divisor for force-to-velocity integration |
 | `Flap impulse strength` | Instant flap velocity delta |
 | `Flap impulse angle` | Forward/up blend for flap impulse |
 | `Flap cooldown` | Minimum time between flap impulses |
+| `Camera fly-by-wire` | Enables/disables camera target following |
+| `FBW target distance` | Fallback target distance along the camera look ray |
 | `Sideslip compensation` | Enables/disables local yaw weathervaning |
 | `Sideslip yaw step` | Max compensation yaw per physics frame |
 | `Reference area` | Scales aerodynamic lift/drag |

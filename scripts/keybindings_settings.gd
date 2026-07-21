@@ -9,11 +9,13 @@ const CHARACTER_Q3 := "q3"
 const CHARACTER_SPECTATOR := "spectator"
 const CHARACTER_PLATFORMER := "platformer"
 const CHARACTER_FLIGHT := "flight"
+const CHARACTER_Q3_N_FLIGHT := "q3_n_flight"
 const SECTIONS := {
 	CHARACTER_Q3: "bindings_q3",
 	CHARACTER_SPECTATOR: "bindings_spectator",
 	CHARACTER_PLATFORMER: "bindings_platformer",
 	CHARACTER_FLIGHT: "bindings_flight",
+	CHARACTER_Q3_N_FLIGHT: "bindings_q3_n_flight",
 }
 const Q3_ACTIONS: Array[String] = [
 	"player_forward",
@@ -49,6 +51,16 @@ const FLIGHT_ACTIONS: Array[String] = [
 	"player_right",
 	"player_jump",
 ]
+const Q3_N_FLIGHT_ACTIONS: Array[String] = [
+	"player_forward",
+	"player_back",
+	"player_left",
+	"player_right",
+	"player_jump",
+	"player_crouch",
+	"player_special",
+	"player_walk",
+]
 const Q3_ACTION_LABELS := {
 	"player_forward": "Move Forward",
 	"player_back": "Move Back",
@@ -83,6 +95,16 @@ const FLIGHT_ACTION_LABELS := {
 	"player_right": "Roll Right",
 	"player_jump": "Flap / Jump",
 }
+const Q3_N_FLIGHT_ACTION_LABELS := {
+	"player_forward": "Move Forward / Pitch Down",
+	"player_back": "Move Back / Pitch Up",
+	"player_left": "Move Left / Roll Left",
+	"player_right": "Move Right / Roll Right",
+	"player_jump": "Jump / Hold Flight / Flap",
+	"player_crouch": "Crouch",
+	"player_special": "Special / Wall Jump",
+	"player_walk": "Slow Walk",
+}
 const DEFAULT_BINDINGS := {
 	"player_forward": [KEY_W, -1],
 	"player_back": [KEY_S, -1],
@@ -113,6 +135,8 @@ func get_actions(controller_id := "") -> Array[String]:
 		return PLATFORMER_ACTIONS.duplicate()
 	if controller == CHARACTER_FLIGHT:
 		return FLIGHT_ACTIONS.duplicate()
+	if controller == CHARACTER_Q3_N_FLIGHT:
+		return Q3_N_FLIGHT_ACTIONS.duplicate()
 	return Q3_ACTIONS.duplicate()
 
 
@@ -124,6 +148,8 @@ func get_action_label(action: String, controller_id := "") -> String:
 		return str(PLATFORMER_ACTION_LABELS.get(action, action))
 	if controller == CHARACTER_FLIGHT:
 		return str(FLIGHT_ACTION_LABELS.get(action, action))
+	if controller == CHARACTER_Q3_N_FLIGHT:
+		return str(Q3_N_FLIGHT_ACTION_LABELS.get(action, action))
 	return str(Q3_ACTION_LABELS.get(action, action))
 
 
@@ -295,6 +321,8 @@ func _normalize_controller(value: String) -> String:
 		return CHARACTER_PLATFORMER
 	if value == CHARACTER_FLIGHT:
 		return CHARACTER_FLIGHT
+	if value == CHARACTER_Q3_N_FLIGHT:
+		return CHARACTER_Q3_N_FLIGHT
 	return CHARACTER_Q3
 
 

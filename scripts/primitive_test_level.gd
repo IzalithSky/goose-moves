@@ -3,6 +3,7 @@ extends Node3D
 const Q3_CHARACTER_CONTROLLER_SCENE := preload("res://scenes/q3_character_controller.tscn")
 const PLATFORMER_CONTROLLER_SCENE := preload("res://scenes/platformer_controller.tscn")
 const FLIGHT_CONTROLLER_SCENE := preload("res://scenes/flight_controller.tscn")
+const Q3_N_FLIGHT_CONTROLLER_SCENE := preload("res://scenes/q3_n_flight_controller.tscn")
 const SPECTATOR_CAMERA_SCENE := preload("res://scenes/spectator_camera.tscn")
 const PAUSE_MENU_SCENE := preload("res://scenes/pause_menu.tscn")
 const DEFAULT_Q3_POSITION := Vector3(0.0, 1.0, 20.0)
@@ -58,6 +59,9 @@ func _spawn_character(character_id: String, view_transform: Transform3D) -> void
 	elif active_character_id == Settings.CHARACTER_FLIGHT:
 		active_character = FLIGHT_CONTROLLER_SCENE.instantiate() as Node3D
 		active_character.call("place_at_view", view_transform)
+	elif active_character_id == Settings.CHARACTER_Q3_N_FLIGHT:
+		active_character = Q3_N_FLIGHT_CONTROLLER_SCENE.instantiate() as Node3D
+		active_character.call("place_at_view", view_transform)
 	else:
 		active_character = Q3_CHARACTER_CONTROLLER_SCENE.instantiate() as Node3D
 		_place_q3_at_view(active_character, view_transform)
@@ -90,6 +94,9 @@ func _active_view_transform() -> Transform3D:
 	if active_character_id == Settings.CHARACTER_FLIGHT:
 		var flight_camera := active_character.call("get_view_camera") as Camera3D
 		return flight_camera.global_transform
+	if active_character_id == Settings.CHARACTER_Q3_N_FLIGHT:
+		var hybrid_camera := active_character.call("get_view_camera") as Camera3D
+		return hybrid_camera.global_transform
 	return active_character.global_transform
 
 

@@ -35,6 +35,9 @@ collision_mask = 1
 current = true
 fov = 100.0
 
+[node name="FirstPersonCamera" type="Camera3D" parent="."]
+fov = 100.0
+
 [node name="HUD" type="CanvasLayer" parent="."]
 
 [node name="StatusLabel" type="Label" parent="HUD"]

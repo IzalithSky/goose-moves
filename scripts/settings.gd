@@ -5,6 +5,7 @@ signal settings_changed
 const Q3CC := preload("res://scripts/q3_character_controller.gd")
 const PLATFORMER_CC := preload("res://scripts/platformer_controller.gd")
 const FLIGHT_CC := preload("res://scripts/flight_controller.gd")
+const Q3_N_FLIGHT_CC := preload("res://scripts/q3_n_flight_controller.gd")
 const SAVE_PATH := "user://settings.cfg"
 const PRESET_SAVE_VERSION := 1
 const BUILTIN_PRESETS_DIR := "res://data/settings_presets"
@@ -15,23 +16,30 @@ const SOURCE_USER := "user"
 const SECTION := "settings"
 const DEFAULT_MOUSE_SENSITIVITY := 0.003
 const DEFAULT_FOV := 100.0
+const Q3_N_FLIGHT_DEFAULT_FOV := 80.0
+const Q3_N_FLIGHT_DEFAULT_Q3_THIRD_PERSON := 1.0
+const Q3_N_FLIGHT_DEFAULT_FLIGHT_FIRST_PERSON := 0.0
+const Q3_N_FLIGHT_DEFAULT_MOVEMENT_MODE := Q3CC.MovementMode.WARSOW_CLASSIC
 const MIN_FOV := 60.0
 const MAX_FOV := 140.0
 const CHARACTER_Q3 := "q3"
 const CHARACTER_SPECTATOR := "spectator"
 const CHARACTER_PLATFORMER := "platformer"
 const CHARACTER_FLIGHT := "flight"
+const CHARACTER_Q3_N_FLIGHT := "q3_n_flight"
 const CONTROLLER_SECTIONS := {
 	CHARACTER_Q3: "controller_q3",
 	CHARACTER_SPECTATOR: "controller_spectator",
 	CHARACTER_PLATFORMER: "controller_platformer",
 	CHARACTER_FLIGHT: "controller_flight",
+	CHARACTER_Q3_N_FLIGHT: "controller_q3_n_flight",
 }
 const CONTROLLER_LABELS := {
 	CHARACTER_Q3: "Q3",
 	CHARACTER_SPECTATOR: "Spectator",
 	CHARACTER_PLATFORMER: "Platformer",
 	CHARACTER_FLIGHT: "Flight",
+	CHARACTER_Q3_N_FLIGHT: "Q3 + Flight",
 }
 const Q3_SETTING_DEFS: Array[Dictionary] = [
 	{"key": "fov", "label": "Field of view", "default": DEFAULT_FOV, "min": MIN_FOV, "max": MAX_FOV, "step": 1.0, "format": "%.0f", "suffix": "°", "control": "slider"},
@@ -93,8 +101,27 @@ const FLIGHT_SETTING_DEFS: Array[Dictionary] = [
 	{"key": "fov", "label": "Field of view", "default": DEFAULT_FOV, "min": MIN_FOV, "max": MAX_FOV, "step": 1.0, "format": "%.0f", "suffix": "°", "control": "slider"},
 	{"key": "mouse_sensitivity", "label": "Mouse sensitivity", "default": DEFAULT_MOUSE_SENSITIVITY, "min": 0.001, "max": 0.02, "step": 0.001, "format": "%.3f", "control": "slider"},
 	{"key": "camera_distance", "label": "Camera distance", "default": FLIGHT_CC.DEFAULT_CAMERA_DISTANCE, "min": 1.0, "max": 15.0, "step": 0.1, "format": "%.1f", "suffix": " m"},
+	{"key": "first_person", "label": "First-person camera", "default": FLIGHT_CC.DEFAULT_FIRST_PERSON_ENABLED, "min": 0.0, "max": 1.0, "step": 1.0, "control": "toggle"},
 	{"key": "gravity_scale", "label": "Gravity scale", "default": FLIGHT_CC.DEFAULT_GRAVITY_SCALE, "min": 0.0, "max": 1.0, "step": 0.01, "format": "%.2f"},
 	{"key": "mass", "label": "Mass", "default": FLIGHT_CC.DEFAULT_MASS, "min": 1.0, "max": 50000.0, "step": 50.0, "format": "%.0f", "suffix": " kg"},
+	{"key": "flap_impulse_strength", "label": "Flap impulse strength", "default": FLIGHT_CC.DEFAULT_FLAP_IMPULSE_STRENGTH, "min": 0.0, "max": 50.0, "step": 0.1, "format": "%.1f", "suffix": " m/s"},
+	{"key": "flap_impulse_angle", "label": "Flap impulse angle", "default": FLIGHT_CC.DEFAULT_FLAP_IMPULSE_ANGLE_DEGREES, "min": 0.0, "max": 90.0, "step": 1.0, "format": "%.0f", "suffix": "°"},
+	{"key": "flap_cooldown", "label": "Flap cooldown", "default": FLIGHT_CC.DEFAULT_FLAP_COOLDOWN, "min": 0.0, "max": 5.0, "step": 0.05, "format": "%.2f", "suffix": " s"},
+	{"key": "camera_fly_by_wire", "label": "Camera fly-by-wire", "default": FLIGHT_CC.DEFAULT_CAMERA_FLY_BY_WIRE_ENABLED, "min": 0.0, "max": 1.0, "step": 1.0, "control": "toggle"},
+	{"key": "camera_fly_by_wire_target_distance", "label": "FBW target distance", "default": FLIGHT_CC.DEFAULT_CAMERA_FLY_BY_WIRE_TARGET_DISTANCE, "min": 5.0, "max": 500.0, "step": 5.0, "format": "%.0f", "suffix": " m"},
+	{"key": "sideslip_compensation", "label": "Sideslip compensation", "default": FLIGHT_CC.DEFAULT_SIDESLIP_COMPENSATION_ENABLED, "min": 0.0, "max": 1.0, "step": 1.0, "control": "toggle"},
+	{"key": "sideslip_compensation_max_yaw", "label": "Sideslip yaw step", "default": FLIGHT_CC.DEFAULT_SIDESLIP_COMPENSATION_MAX_YAW_DEGREES, "min": 0.0, "max": 180.0, "step": 1.0, "format": "%.0f", "suffix": "°/frame"},
+	{"key": "reference_area", "label": "Reference area", "default": FLIGHT_CC.DEFAULT_REFERENCE_AREA, "min": 0.1, "max": 50.0, "step": 0.1, "format": "%.1f", "suffix": " m²"},
+	{"key": "extra_linear_drag_quadratic_coefficient", "label": "Extra quadratic drag", "default": FLIGHT_CC.DEFAULT_EXTRA_LINEAR_DRAG_QUADRATIC_COEFFICIENT, "min": 0.0, "max": 1.0, "step": 0.001, "format": "%.3f"},
+]
+var Q3_N_FLIGHT_SETTING_DEFS := [
+	{"key": "flight_hold_threshold", "label": "Hold jump for flight", "default": Q3_N_FLIGHT_CC.DEFAULT_FLIGHT_HOLD_THRESHOLD, "min": 0.0, "max": 2.0, "step": 0.05, "format": "%.2f", "suffix": " s"},
+	{"key": "flight_no_contact_threshold", "label": "Airborne time for flight", "default": Q3_N_FLIGHT_CC.DEFAULT_FLIGHT_NO_CONTACT_THRESHOLD, "min": 0.0, "max": 2.0, "step": 0.05, "format": "%.2f", "suffix": " s"},
+] + Q3_SETTING_DEFS + [
+	{"key": "camera_distance", "label": "Flight camera distance", "default": FLIGHT_CC.DEFAULT_CAMERA_DISTANCE, "min": 1.0, "max": 15.0, "step": 0.1, "format": "%.1f", "suffix": " m"},
+	{"key": "first_person", "label": "Flight first-person camera", "default": FLIGHT_CC.DEFAULT_FIRST_PERSON_ENABLED, "min": 0.0, "max": 1.0, "step": 1.0, "control": "toggle"},
+	{"key": "gravity_scale", "label": "Flight gravity scale", "default": FLIGHT_CC.DEFAULT_GRAVITY_SCALE, "min": 0.0, "max": 1.0, "step": 0.01, "format": "%.2f"},
+	{"key": "mass", "label": "Flight mass", "default": FLIGHT_CC.DEFAULT_MASS, "min": 1.0, "max": 50000.0, "step": 50.0, "format": "%.0f", "suffix": " kg"},
 	{"key": "flap_impulse_strength", "label": "Flap impulse strength", "default": FLIGHT_CC.DEFAULT_FLAP_IMPULSE_STRENGTH, "min": 0.0, "max": 50.0, "step": 0.1, "format": "%.1f", "suffix": " m/s"},
 	{"key": "flap_impulse_angle", "label": "Flap impulse angle", "default": FLIGHT_CC.DEFAULT_FLAP_IMPULSE_ANGLE_DEGREES, "min": 0.0, "max": 90.0, "step": 1.0, "format": "%.0f", "suffix": "°"},
 	{"key": "flap_cooldown", "label": "Flap cooldown", "default": FLIGHT_CC.DEFAULT_FLAP_COOLDOWN, "min": 0.0, "max": 5.0, "step": 0.05, "format": "%.2f", "suffix": " s"},
@@ -132,6 +159,8 @@ func load_settings() -> void:
 
 func set_controller_setting(key: String, value: float, controller_id := "") -> void:
 	var controller := _resolve_controller(controller_id)
+	if _is_q3_n_flight_fixed_size_key(controller, key):
+		return
 	var def := _get_setting_def(controller, key)
 	if def.is_empty():
 		return
@@ -143,12 +172,14 @@ func set_controller_setting(key: String, value: float, controller_id := "") -> v
 
 func get_controller_setting(key: String, controller_id := "") -> float:
 	var controller := _resolve_controller(controller_id)
+	if _is_q3_n_flight_fixed_size_key(controller, key):
+		return _get_q3_n_flight_fixed_size_value(key)
 	var settings := controller_settings.get(controller, {}) as Dictionary
 	var def := _get_setting_def(controller, key)
 	return float(settings.get(key, def.get("default", 0.0)))
 
 
-func get_controller_setting_defs(controller_id := "") -> Array[Dictionary]:
+func get_controller_setting_defs(controller_id := "") -> Array:
 	var controller := _resolve_controller(controller_id)
 	if controller == CHARACTER_SPECTATOR:
 		return SPECTATOR_SETTING_DEFS
@@ -156,11 +187,59 @@ func get_controller_setting_defs(controller_id := "") -> Array[Dictionary]:
 		return PLATFORMER_SETTING_DEFS
 	if controller == CHARACTER_FLIGHT:
 		return FLIGHT_SETTING_DEFS
+	if controller == CHARACTER_Q3_N_FLIGHT:
+		return _get_q3_n_flight_setting_defs()
 	return Q3_SETTING_DEFS
 
 
 func get_character_label(controller_id := "") -> String:
 	return str(CONTROLLER_LABELS[_resolve_controller(controller_id)])
+
+
+func _get_q3_n_flight_setting_defs() -> Array:
+	var defs := []
+	for def in Q3_N_FLIGHT_SETTING_DEFS:
+		var key := str(def["key"])
+		if _is_q3_n_flight_fixed_size_key(CHARACTER_Q3_N_FLIGHT, key):
+			continue
+		var hybrid_def := (def as Dictionary).duplicate(true)
+		_apply_q3_n_flight_default_overrides(hybrid_def)
+		defs.append(hybrid_def)
+	return defs
+
+
+func _apply_q3_n_flight_default_overrides(def: Dictionary) -> void:
+	match str(def["key"]):
+		"fov":
+			def["default"] = Q3_N_FLIGHT_DEFAULT_FOV
+		"movement_mode":
+			def["default"] = Q3_N_FLIGHT_DEFAULT_MOVEMENT_MODE
+		"third_person":
+			def["default"] = Q3_N_FLIGHT_DEFAULT_Q3_THIRD_PERSON
+		"first_person":
+			def["default"] = Q3_N_FLIGHT_DEFAULT_FLIGHT_FIRST_PERSON
+
+
+func _is_q3_n_flight_fixed_size_key(controller_id: String, key: String) -> bool:
+	return (
+		controller_id == CHARACTER_Q3_N_FLIGHT
+		and (
+			key == "character_size_x"
+			or key == "character_size_y"
+			or key == "character_size_z"
+		)
+	)
+
+
+func _get_q3_n_flight_fixed_size_value(key: String) -> float:
+	match key:
+		"character_size_x":
+			return Q3_N_FLIGHT_CC.FLIGHT_COLLISION_SIZE.x
+		"character_size_y":
+			return Q3_N_FLIGHT_CC.FLIGHT_COLLISION_SIZE.y
+		"character_size_z":
+			return Q3_N_FLIGHT_CC.FLIGHT_COLLISION_SIZE.z
+	return 0.0
 
 
 func preset_path(source: String, id: String, controller_id := "") -> String:
@@ -314,6 +393,8 @@ func _normalize_character_controller(value: String) -> String:
 		return CHARACTER_PLATFORMER
 	if value == CHARACTER_FLIGHT:
 		return CHARACTER_FLIGHT
+	if value == CHARACTER_Q3_N_FLIGHT:
+		return CHARACTER_Q3_N_FLIGHT
 	return CHARACTER_Q3
 
 

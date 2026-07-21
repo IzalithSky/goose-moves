@@ -1,0 +1,98 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/q3_n_flight_controller.gd" id="1_controller"]
+[ext_resource type="PackedScene" path="res://scenes/q3_movement_hud.tscn" id="2_hud"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_player"]
+size = Vector3(1.2, 1.2, 1.2)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_collider_visual"]
+transparency = 1
+shading_mode = 0
+albedo_color = Color(0.16, 0.62, 1, 0.72)
+
+[sub_resource type="BoxMesh" id="BoxMesh_collider_visual"]
+material = SubResource("StandardMaterial3D_collider_visual")
+size = Vector3(1.2, 1.2, 1.2)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_flight_body"]
+transparency = 1
+albedo_color = Color(0.98, 0.5, 0.08, 0.72)
+roughness = 0.7
+
+[sub_resource type="PrismMesh" id="PrismMesh_flight_body"]
+material = SubResource("StandardMaterial3D_flight_body")
+size = Vector3(1.2, 1.8, 0.6)
+
+[node name="Q3NFlightController" type="CharacterBody3D"]
+script = ExtResource("1_controller")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+position = Vector3(0, 0.6, 0)
+shape = SubResource("BoxShape3D_player")
+
+[node name="CharacterColliderVisual" type="MeshInstance3D" parent="."]
+visible = false
+position = Vector3(0, 0.6, 0)
+mesh = SubResource("BoxMesh_collider_visual")
+
+[node name="FlightBodyMesh" type="MeshInstance3D" parent="."]
+visible = false
+transform = Transform3D(-1, -8.742278e-08, 3.821371e-15, 0, -4.371139e-08, -1, 8.742278e-08, -1, 4.371139e-08, 0, 0, 0)
+mesh = SubResource("PrismMesh_flight_body")
+
+[node name="Head" type="Node3D" parent="."]
+position = Vector3(0, 1.071429, 0)
+
+[node name="Camera3D" type="Camera3D" parent="Head"]
+current = true
+fov = 100.0
+
+[node name="ThirdPersonSpringArm" type="SpringArm3D" parent="Head"]
+spring_length = 4.0
+margin = 0.1
+collision_mask = 1
+
+[node name="Camera3D" type="Camera3D" parent="Head/ThirdPersonSpringArm"]
+fov = 100.0
+
+[node name="Q3HUD" parent="." instance=ExtResource("2_hud")]
+
+[node name="FlightCameraRig" type="Node3D" parent="."]
+
+[node name="SpringArm3D" type="SpringArm3D" parent="FlightCameraRig"]
+spring_length = 5.0
+margin = 0.1
+collision_mask = 1
+
+[node name="Camera3D" type="Camera3D" parent="FlightCameraRig/SpringArm3D"]
+fov = 100.0
+
+[node name="FlightFirstPersonCamera" type="Camera3D" parent="."]
+fov = 100.0
+
+[node name="FlightHUD" type="CanvasLayer" parent="."]
+visible = false
+
+[node name="StatusLabel" type="Label" parent="FlightHUD"]
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 260.0
+offset_bottom = 120.0
+mouse_filter = 2
+theme_override_font_sizes/font_size = 18
+
+[node name="CenterDot" type="ColorRect" parent="FlightHUD"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -2.0
+offset_top = -2.0
+offset_right = 2.0
+offset_bottom = 2.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(1, 1, 1, 0.85)

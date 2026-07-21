@@ -13,6 +13,13 @@ var max_abs_sideslip_deg := 0.0
 
 
 func _ready() -> void:
+	var pre_ready_controller := CONTROLLER_SCENE.instantiate() as FlightController
+	var pre_ready_view := Transform3D(Basis.IDENTITY, Vector3(3.0, 4.0, 5.0))
+	pre_ready_controller.place_at_view(pre_ready_view)
+	check_vec3("pre-ready place_at_view sets flight spawn position", pre_ready_controller.position, pre_ready_view.origin, 0.001)
+	check_vec3("pre-ready place_at_view seeds flight velocity", pre_ready_controller.velocity, Vector3(0.0, 0.0, -12.0), 0.001)
+	pre_ready_controller.queue_free()
+
 	c = CONTROLLER_SCENE.instantiate()
 	add_child(c)
 	# Anchor the aerodynamics to the code defaults so the test is independent of
@@ -49,6 +56,13 @@ func _flat_dir(v: Vector3) -> Vector3:
 	if v.length_squared() <= 1e-6:
 		return Vector3.FORWARD
 	return v.normalized()
+
+
+func _has_flight_setting(key: String) -> bool:
+	for def in Settings.get_controller_setting_defs(Settings.CHARACTER_FLIGHT):
+		if str(def["key"]) == key:
+			return true
+	return false
 
 
 func _heading_change_from_start_deg() -> float:
@@ -239,6 +253,32 @@ func _check_camera_rig_is_elevated() -> void:
 	check_vec3("flight camera rig follows above the character", c.camera_rig.global_position, expected_position, 0.001)
 
 
+func _check_first_person_camera_toggle() -> void:
+	check("flight settings expose first-person camera", _has_flight_setting("first_person"))
+	c.first_person_enabled = true
+	c._apply_camera_rotation()
+	check("flight first-person camera becomes active", c.get_view_camera() == c.first_person_camera)
+	check("flight first-person camera is current", c.first_person_camera.current)
+	check("flight third-person camera is not current in first person", not c.camera.current)
+	check("flight body mesh is hidden in first person", not c.body_mesh.visible)
+	check_vec3(
+		"flight first-person camera follows collision center",
+		c.first_person_camera.global_position,
+		c.collision_shape.global_position,
+		0.001
+	)
+	var expected_target: Vector3 = (
+		c.first_person_camera.global_position
+		+ (-c.first_person_camera.global_basis.z * c.camera_fly_by_wire_target_distance)
+	)
+	check_vec3("flight FBW target uses first-person view", c._get_camera_target_point(), expected_target, 0.001)
+	c.first_person_enabled = false
+	c._apply_camera_rotation()
+	check("flight third-person camera becomes active again", c.get_view_camera() == c.camera)
+	check("flight third-person camera is current again", c.camera.current)
+	check("flight body mesh is visible outside first person", c.body_mesh.visible)
+
+
 func _check_fly_by_wire_uses_body_target_direction() -> void:
 	var saved_basis: Basis = c.global_basis
 	var saved_position: Vector3 = c.global_position
@@ -383,6 +423,7 @@ func step() -> void:
 		_check_roll_uses_body_forward_axis()
 		_check_camera_rig_is_elevated()
 		_check_camera_target_fallback()
+		_check_first_person_camera_toggle()
 		_check_fly_by_wire_uses_body_target_direction()
 		_check_sideslip_compensation("forward axial sideslip", Basis.IDENTITY, Vector3(4.0, 0.0, -10.0))
 		_check_sideslip_compensation("negative axial sideslip", Basis.IDENTITY, Vector3(3.0, 0.0, 8.0))

@@ -4,16 +4,21 @@ extends CharacterBody3D
 const DEFAULT_CAMERA_DISTANCE := 5.0
 const DEFAULT_GRAVITY_SCALE := 0.15
 const DEFAULT_MASS := 4.0
-const DEFAULT_MAX_THRUST := 18.8
-const DEFAULT_FLAP_DURATION := 1.0
+const DEFAULT_FLAP_IMPULSE_STRENGTH := 4.7
+const DEFAULT_FLAP_IMPULSE_ANGLE_DEGREES := 45.0
+const DEFAULT_FLAP_COOLDOWN := 0.5
+const DEFAULT_MAX_BANK_ANGLE_DEGREES := 45.0
+const DEFAULT_SIDESLIP_COMPENSATION_ENABLED := 1.0
+const DEFAULT_SIDESLIP_COMPENSATION_MAX_YAW_DEGREES := 0.1
 const Q3_FLOOR_FRICTION := 6.0
 const Q3_FLOOR_STOP_SPEED := 3.81
 const FLOOR_NORMAL_Y := 0.7
-const CAMERA_ROLL_MAX_BANK_RAD := PI * 0.25
+const HIGH_BANK_AOA_ALIGNMENT_START_RAD := PI / 3.0
 const DEFAULT_REFERENCE_AREA := 0.275
 const DEFAULT_EXTRA_LINEAR_DRAG_LINEAR_COEFFICIENT := 0.0
 const DEFAULT_EXTRA_LINEAR_DRAG_QUADRATIC_COEFFICIENT := 0.015
 const DEFAULT_AIR_DENSITY := 1.225
+const MAX_LIFT_AOA_MIN_AIRSPEED := 5.0
 const MIN_AERODYNAMIC_SPEED_SQUARED := 0.0001
 const MIN_DIRECTION_VECTOR_LENGTH_SQUARED := 0.000001
 const MIN_HEADING_SPEED_SQUARED := 1.0
@@ -47,19 +52,6 @@ const DEFAULT_DRAG_TABLE: Array[Vector2] = [
 	Vector2(26.2585029602051, 0.253907829523087),
 	Vector2(31.0657596588135, 0.352104216814041),
 ]
-const DEFAULT_THRUST_TABLE: Array[Vector2] = [
-	Vector2(0.0, 1.0),
-	Vector2(28.6281185150146, 0.904809594154358),
-	Vector2(45.6349220275879, 0.8567134141922),
-	Vector2(61.5079383850098, 0.802605211734772),
-	Vector2(79.3650817871094, 0.754509031772614),
-	Vector2(103.741493225098, 0.679358720779419),
-	Vector2(132.653060913086, 0.583166360855103),
-	Vector2(163.548751831055, 0.498997986316681),
-	Vector2(210.03401184082, 0.381763517856598),
-	Vector2(390.306121826172, 0.0420841686427593),
-]
-
 @onready var collision_shape: CollisionShape3D = $CollisionShape3D
 @onready var body_mesh: MeshInstance3D = $BodyMesh
 @onready var camera_rig: Node3D = $CameraRig
@@ -67,15 +59,21 @@ const DEFAULT_THRUST_TABLE: Array[Vector2] = [
 @onready var spring_arm: SpringArm3D = $CameraRig/SpringArm3D
 @onready var status_label: Label = $HUD/StatusLabel
 
-var flap_time_remaining := 0.0
+var flap_cooldown_remaining := 0.0
 var aoa_deg := 0.0
 var sideslip_deg := 0.0
+var _positive_max_lift_aoa_deg := 15.0
+var _negative_max_lift_aoa_deg := -15.0
 var mass := DEFAULT_MASS
-var max_thrust := DEFAULT_MAX_THRUST
 var reference_area := DEFAULT_REFERENCE_AREA
 var gravity_scale := DEFAULT_GRAVITY_SCALE
 var extra_linear_drag_quadratic_coefficient := DEFAULT_EXTRA_LINEAR_DRAG_QUADRATIC_COEFFICIENT
-var flap_duration := DEFAULT_FLAP_DURATION
+var flap_impulse_strength := DEFAULT_FLAP_IMPULSE_STRENGTH
+var flap_impulse_angle_rad := deg_to_rad(DEFAULT_FLAP_IMPULSE_ANGLE_DEGREES)
+var flap_cooldown := DEFAULT_FLAP_COOLDOWN
+var max_bank_angle_rad := deg_to_rad(DEFAULT_MAX_BANK_ANGLE_DEGREES)
+var sideslip_compensation_enabled := DEFAULT_SIDESLIP_COMPENSATION_ENABLED >= 0.5
+var sideslip_compensation_max_yaw_rad := deg_to_rad(DEFAULT_SIDESLIP_COMPENSATION_MAX_YAW_DEGREES)
 var mouse_sensitivity := Settings.DEFAULT_MOUSE_SENSITIVITY
 var camera_yaw := 0.0
 var camera_pitch := deg_to_rad(-15.0)
@@ -87,26 +85,28 @@ func _ready() -> void:
 	camera_rig.top_level = true
 	collision_shape.shape = collision_shape.shape.duplicate()
 	body_mesh.mesh = body_mesh.mesh.duplicate()
+	spring_arm.add_excluded_object(get_rid())
 	_apply_controller_settings()
+	_refresh_max_lift_aoa_limits()
 	Settings.settings_changed.connect(on_settings_changed)
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
 func _process(_delta: float) -> void:
 	var forward_speed := velocity.dot(-global_basis.z)
-	status_label.text = "Flight\nSpeed %.2f m/s\nAoA %.1f°\nSideslip %.1f°\nFlap %.2f s" % [
+	status_label.text = "Flight\nSpeed %.2f m/s\nAoA %.1f°\nSideslip %.1f°\nFlap CD %.2f s" % [
 		forward_speed,
 		aoa_deg,
 		sideslip_deg,
-		flap_time_remaining,
+		flap_cooldown_remaining,
 	]
 
 
 func _physics_process(delta: float) -> void:
+	flap_cooldown_remaining = maxf(flap_cooldown_remaining - delta, 0.0)
 	_collect_inputs()
-	flap_time_remaining = maxf(flap_time_remaining - delta, 0.0)
 	_update_aero_angles()
-	var total_force := _get_gravity_force() + _get_thrust_force() + _get_aerodynamic_force() + _get_extra_drag_force()
+	var total_force := _get_gravity_force() + _get_aerodynamic_force() + _get_extra_drag_force()
 	velocity += (total_force / maxf(mass, 0.001)) * delta
 	_apply_direct_rotation()
 	move_and_slide()
@@ -152,7 +152,7 @@ func on_settings_changed() -> void:
 
 func _collect_inputs() -> void:
 	if Input.is_action_just_pressed("player_jump"):
-		flap_time_remaining = maxf(flap_duration, 0.0)
+		_try_flap_impulse()
 
 
 func _update_aero_angles() -> void:
@@ -171,15 +171,18 @@ func _get_gravity_force() -> Vector3:
 	return gravity_direction * gravity_magnitude * gravity_scale * mass
 
 
-func _get_thrust_force() -> Vector3:
-	if flap_time_remaining <= 0.0:
-		return Vector3.ZERO
+func _try_flap_impulse() -> void:
+	if flap_cooldown_remaining > 0.0 or flap_impulse_strength <= 0.0:
+		return
+	velocity += _get_flap_impulse_axis() * flap_impulse_strength
+	flap_cooldown_remaining = maxf(flap_cooldown, 0.0)
+
+
+func _get_flap_impulse_axis() -> Vector3:
 	var forward_axis := (-global_basis.z).normalized()
 	var up_axis := global_basis.y.normalized()
-	var flap_axis := (forward_axis + up_axis).normalized()
-	var forward_speed := absf(velocity.dot(forward_axis))
-	var thrust_scale := maxf(_sample_table(DEFAULT_THRUST_TABLE, forward_speed), 0.0)
-	return flap_axis * max_thrust * thrust_scale
+	var angle: float = clampf(flap_impulse_angle_rad, 0.0, PI * 0.5)
+	return ((forward_axis * cos(angle)) + (up_axis * sin(angle))).normalized()
 
 
 func _get_aerodynamic_force() -> Vector3:
@@ -245,36 +248,77 @@ func _apply_direct_rotation() -> void:
 			heading_forward.dot(camera_flat_forward)
 		)
 
-	var target_bank_angle := clampf(-yaw_error * 0.5, -CAMERA_ROLL_MAX_BANK_RAD, CAMERA_ROLL_MAX_BANK_RAD)
-	var target_forward := (heading_forward * cos(camera_pitch) + Vector3.UP * sin(camera_pitch)).normalized()
-	var target_right := target_forward.cross(Vector3.UP)
-	if target_right.length_squared() <= MIN_DIRECTION_VECTOR_LENGTH_SQUARED:
-		target_right = global_basis.x
+	var target_bank_angle := clampf(-yaw_error, -max_bank_angle_rad, max_bank_angle_rad)
+	var target_aoa := _get_bank_scaled_aoa(_get_max_lift_limited_aoa(), target_bank_angle)
+	if absf(target_bank_angle) < HIGH_BANK_AOA_ALIGNMENT_START_RAD:
+		var target_forward := (heading_forward * cos(target_aoa) + Vector3.UP * sin(target_aoa)).normalized()
+		var target_right := target_forward.cross(Vector3.UP)
+		if target_right.length_squared() <= MIN_DIRECTION_VECTOR_LENGTH_SQUARED:
+			target_right = global_basis.x
+		else:
+			target_right = target_right.normalized()
+		var target_up := target_right.cross(target_forward).normalized()
+		target_right = Basis(target_forward, target_bank_angle) * target_right
+		target_up = Basis(target_forward, target_bank_angle) * target_up
+		global_basis = Basis(target_right, target_up, -target_forward).orthonormalized()
 	else:
-		target_right = target_right.normalized()
-	var target_up := target_right.cross(target_forward).normalized()
-	target_right = Basis(target_forward, target_bank_angle) * target_right
-	target_up = Basis(target_forward, target_bank_angle) * target_up
-	global_basis = Basis(target_right, target_up, -target_forward).orthonormalized()
+		var air_speed := velocity.length()
+		var airflow_direction := -global_basis.z
+		if air_speed > sqrt(MIN_AERODYNAMIC_SPEED_SQUARED):
+			airflow_direction = velocity / air_speed
+		var target_right := airflow_direction.cross(Vector3.UP)
+		if target_right.length_squared() <= MIN_DIRECTION_VECTOR_LENGTH_SQUARED:
+			target_right = global_basis.x
+		else:
+			target_right = target_right.normalized()
+		var target_up := target_right.cross(airflow_direction).normalized()
+		target_right = Basis(airflow_direction, target_bank_angle) * target_right
+		target_up = Basis(airflow_direction, target_bank_angle) * target_up
+		var aoa_rotation := Basis(target_right, target_aoa)
+		var target_forward := aoa_rotation * airflow_direction
+		target_up = aoa_rotation * target_up
+		global_basis = Basis(target_right, target_up, -target_forward).orthonormalized()
+
 	_apply_sideslip_compensation()
 
 
 func _apply_sideslip_compensation() -> void:
-	# Coordinated flight: yaw the body about its own up axis until the relative
-	# wind has no lateral component (zero sideslip / skid). The bank tilts the
-	# right axis out of horizontal, so a climbing or diving bank would otherwise
-	# leave the nose skidding across the airflow; nulling it here also keeps the
-	# perpendicular-to-wind lift axis (see _get_aerodynamic_force) square to the
-	# body, so the wings carry the turn cleanly.
-	if velocity.length_squared() <= MIN_HEADING_SPEED_SQUARED:
+	if not sideslip_compensation_enabled:
 		return
 	var axial := velocity.dot(-global_basis.z)
-	if axial <= 0.0:
+	var lateral := velocity.dot(global_basis.x)
+	if axial * axial + lateral * lateral <= MIN_DIRECTION_VECTOR_LENGTH_SQUARED:
 		return
-	var skid := atan2(velocity.dot(global_basis.x), axial)
+	var skid := atan2(lateral, axial)
 	if is_zero_approx(skid):
 		return
-	global_basis = (Basis(global_basis.y, -skid) * global_basis).orthonormalized()
+	var correction: float = clampf(
+		-skid,
+		-sideslip_compensation_max_yaw_rad,
+		sideslip_compensation_max_yaw_rad,
+	)
+	if is_zero_approx(correction):
+		return
+	global_basis = (Basis(global_basis.y, correction) * global_basis).orthonormalized()
+
+
+func _get_max_lift_limited_aoa() -> float:
+	var air_speed := velocity.length()
+	if air_speed < MAX_LIFT_AOA_MIN_AIRSPEED:
+		return camera_pitch
+
+	return deg_to_rad(clampf(
+		rad_to_deg(camera_pitch),
+		_negative_max_lift_aoa_deg,
+		_positive_max_lift_aoa_deg,
+	))
+
+
+func _get_bank_scaled_aoa(target_aoa: float, target_bank_angle: float) -> float:
+	if target_aoa >= 0.0 or max_bank_angle_rad <= 0.0:
+		return target_aoa
+	var bank_fraction: float = clampf(absf(target_bank_angle) / max_bank_angle_rad, 0.0, 1.0)
+	return target_aoa * (1.0 - bank_fraction)
 
 
 func _apply_collision_response() -> Vector3:
@@ -327,13 +371,48 @@ func _sample_table(points: Array[Vector2], x_value: float) -> float:
 	return points[last_index].y
 
 
+func _refresh_max_lift_aoa_limits() -> void:
+	var positive_found := false
+	var negative_found := false
+	var positive_best_coefficient := 0.0
+	var negative_best_coefficient := 0.0
+	var positive_limit := 15.0
+	var negative_limit := -15.0
+
+	for point in DEFAULT_LIFT_TABLE:
+		if point.x > 0.0 and (not positive_found or point.y > positive_best_coefficient):
+			positive_found = true
+			positive_best_coefficient = point.y
+			positive_limit = point.x
+
+		if point.x < 0.0 and (not negative_found or point.y < negative_best_coefficient):
+			negative_found = true
+			negative_best_coefficient = point.y
+			negative_limit = point.x
+
+	if positive_found:
+		_positive_max_lift_aoa_deg = positive_limit
+	else:
+		_positive_max_lift_aoa_deg = absf(negative_limit)
+
+	if negative_found:
+		_negative_max_lift_aoa_deg = negative_limit
+	else:
+		_negative_max_lift_aoa_deg = -absf(positive_limit)
+
+
 func _apply_controller_settings() -> void:
 	camera.fov = Settings.get_controller_setting("fov", Settings.CHARACTER_FLIGHT)
 	mouse_sensitivity = Settings.get_controller_setting("mouse_sensitivity", Settings.CHARACTER_FLIGHT)
 	spring_arm.spring_length = Settings.get_controller_setting("camera_distance", Settings.CHARACTER_FLIGHT)
 	gravity_scale = Settings.get_controller_setting("gravity_scale", Settings.CHARACTER_FLIGHT)
 	mass = Settings.get_controller_setting("mass", Settings.CHARACTER_FLIGHT)
-	max_thrust = Settings.get_controller_setting("max_thrust", Settings.CHARACTER_FLIGHT)
-	flap_duration = Settings.get_controller_setting("flap_duration", Settings.CHARACTER_FLIGHT)
+	flap_impulse_strength = Settings.get_controller_setting("flap_impulse_strength", Settings.CHARACTER_FLIGHT)
+	flap_impulse_angle_rad = deg_to_rad(Settings.get_controller_setting("flap_impulse_angle", Settings.CHARACTER_FLIGHT))
+	flap_cooldown = Settings.get_controller_setting("flap_cooldown", Settings.CHARACTER_FLIGHT)
+	flap_cooldown_remaining = minf(flap_cooldown_remaining, flap_cooldown)
+	max_bank_angle_rad = deg_to_rad(Settings.get_controller_setting("max_bank_angle", Settings.CHARACTER_FLIGHT))
+	sideslip_compensation_enabled = Settings.get_controller_setting("sideslip_compensation", Settings.CHARACTER_FLIGHT) >= 0.5
+	sideslip_compensation_max_yaw_rad = deg_to_rad(Settings.get_controller_setting("sideslip_compensation_max_yaw", Settings.CHARACTER_FLIGHT))
 	reference_area = Settings.get_controller_setting("reference_area", Settings.CHARACTER_FLIGHT)
 	extra_linear_drag_quadratic_coefficient = Settings.get_controller_setting("extra_linear_drag_quadratic_coefficient", Settings.CHARACTER_FLIGHT)

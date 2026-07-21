@@ -1,10 +1,9 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene format=3 uid="uid://dcwv54crojyk8"]
 
-[ext_resource type="Script" path="res://scripts/platformer_controller.gd" id="1_controller"]
+[ext_resource type="Script" uid="uid://c2cq6erol0rgf" path="res://scripts/platformer_controller.gd" id="1_controller"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_player"]
 radius = 0.625
-height = 2.0
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_body"]
 albedo_color = Color(0.85, 0.19, 0.12, 1)
@@ -13,7 +12,6 @@ roughness = 0.7
 [sub_resource type="CapsuleMesh" id="CapsuleMesh_body"]
 material = SubResource("StandardMaterial3D_body")
 radius = 0.625
-height = 2.0
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_face"]
 albedo_color = Color(1, 0.86, 0.18, 1)
@@ -24,39 +22,38 @@ emission = Color(0.35, 0.22, 0.01, 1)
 material = SubResource("StandardMaterial3D_face")
 size = Vector3(0.18, 0.18, 0.35)
 
-[node name="PlatformerController" type="CharacterBody3D"]
+[node name="PlatformerController" type="CharacterBody3D" unique_id=917364431]
 script = ExtResource("1_controller")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
-position = Vector3(0, 1, 0)
+[node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=460155702]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 shape = SubResource("CapsuleShape3D_player")
 
-[node name="BodyMesh" type="MeshInstance3D" parent="."]
-position = Vector3(0, 1, 0)
+[node name="BodyMesh" type="MeshInstance3D" parent="." unique_id=922996960]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 mesh = SubResource("CapsuleMesh_body")
 
-[node name="FaceMarker" type="MeshInstance3D" parent="."]
-position = Vector3(0, 1.2, 0.625)
+[node name="FaceMarker" type="MeshInstance3D" parent="." unique_id=432217002]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0.625)
 mesh = SubResource("BoxMesh_face")
 
-[node name="CameraRig" type="Node3D" parent="."]
-position = Vector3(0, 1.44, 0)
+[node name="CameraRig" type="Node3D" parent="." unique_id=1163655942]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.44, 0)
 
-[node name="SpringArm3D" type="SpringArm3D" parent="CameraRig"]
+[node name="SpringArm3D" type="SpringArm3D" parent="CameraRig" unique_id=1496066027]
 spring_length = 6.0
 margin = 0.15
-collision_mask = 1
 
-[node name="Camera3D" type="Camera3D" parent="CameraRig/SpringArm3D"]
+[node name="Camera3D" type="Camera3D" parent="CameraRig/SpringArm3D" unique_id=1260502981]
 current = true
 fov = 100.0
 
-[node name="FirstPersonCamera" type="Camera3D" parent="CameraRig"]
+[node name="FirstPersonCamera" type="Camera3D" parent="CameraRig" unique_id=1782095352]
 fov = 100.0
 
-[node name="HUD" type="CanvasLayer" parent="."]
+[node name="HUD" type="CanvasLayer" parent="." unique_id=411334144]
 
-[node name="StatusLabel" type="Label" parent="HUD"]
+[node name="StatusLabel" type="Label" parent="HUD" unique_id=1610941686]
 offset_left = 18.0
 offset_top = 18.0
 offset_right = 260.0

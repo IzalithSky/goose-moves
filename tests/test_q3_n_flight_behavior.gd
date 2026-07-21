@@ -42,6 +42,16 @@ func _hybrid_setting_default(key: String) -> float:
 	return -1.0
 
 
+func _get_pitch_axis_from_view(view_basis: Basis) -> Vector3:
+	var horizontal_forward := -view_basis.orthonormalized().z
+	horizontal_forward.y = 0.0
+	return horizontal_forward.normalized().cross(Vector3.UP).normalized()
+
+
+func _project_onto_pitch_plane(direction: Vector3, pitch_axis: Vector3) -> Vector3:
+	return direction - (pitch_axis * direction.dot(pitch_axis))
+
+
 func _direct_transitions() -> void:
 	if phase_frame < 2:
 		return
@@ -83,9 +93,16 @@ func _direct_transitions() -> void:
 		Basis(Vector3.FORWARD, deg_to_rad(40.0))
 		* Basis(Vector3.RIGHT, deg_to_rad(25.0))
 	).orthonormalized()
+	var takeoff_pitch_axis := _get_pitch_axis_from_view(c.get_view_camera().global_basis)
 	c._enter_flight()
 	check("direct transition enters flight mode", c.mode == c.Mode.FLIGHT)
 	check_vec3("Q3 -> flight preserves velocity", c.velocity, Vector3(3, 4, -5), 0.001)
+	check_vec3(
+		"Q3 -> flight pitches nose along takeoff velocity",
+		_project_onto_pitch_plane(-c.global_basis.z, takeoff_pitch_axis).normalized(),
+		_project_onto_pitch_plane(c.velocity, takeoff_pitch_axis).normalized(),
+		0.001,
+	)
 	c.flight_motor.first_person_enabled = true
 	c._set_flight_visuals()
 	c.flight_motor._apply_camera_rotation()

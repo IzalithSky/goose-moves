@@ -161,7 +161,7 @@ func _enter_flight() -> void:
 	var preserved_velocity := velocity
 	var preserved_position := global_position
 	var view_transform := get_view_camera().global_transform
-	var flight_basis := view_transform.basis.orthonormalized()
+	var flight_basis := _get_takeoff_flight_basis(view_transform.basis, preserved_velocity)
 	var view_euler := view_transform.basis.get_euler()
 	if _body_would_overlap_with_basis(flight_basis):
 		flight_basis = Basis(Vector3.UP, view_euler.y).orthonormalized()
@@ -181,6 +181,27 @@ func _enter_flight() -> void:
 	flight_motor._apply_camera_rotation()
 	flight_motor._update_aero_angles()
 	_set_flight_visuals()
+
+
+func _get_takeoff_flight_basis(view_basis: Basis, takeoff_velocity: Vector3) -> Basis:
+	var horizontal_forward := -view_basis.orthonormalized().z
+	horizontal_forward.y = 0.0
+	if horizontal_forward.length_squared() <= 0.0001:
+		horizontal_forward = Vector3(takeoff_velocity.x, 0.0, takeoff_velocity.z)
+	if horizontal_forward.length_squared() <= 0.0001:
+		horizontal_forward = -global_basis.z
+		horizontal_forward.y = 0.0
+	if horizontal_forward.length_squared() <= 0.0001:
+		horizontal_forward = Vector3.FORWARD
+	horizontal_forward = horizontal_forward.normalized()
+
+	var right_axis := horizontal_forward.cross(Vector3.UP).normalized()
+	var velocity_in_pitch_plane := takeoff_velocity - (right_axis * takeoff_velocity.dot(right_axis))
+	var forward_axis := horizontal_forward
+	if velocity_in_pitch_plane.length_squared() > 0.0001:
+		forward_axis = velocity_in_pitch_plane.normalized()
+	var up_axis := right_axis.cross(forward_axis).normalized()
+	return Basis(right_axis, up_axis, -forward_axis).orthonormalized()
 
 
 func _sync_q3_body_size_to_flight() -> void:

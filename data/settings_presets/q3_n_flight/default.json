@@ -5,6 +5,7 @@
 	"settings": {
 		"flight_hold_threshold": 0.3,
 		"flight_no_contact_threshold": 0.3,
+		"flight_min_activation_speed": 12.0,
 		"body_bounce": 1.0,
 		"body_bounce_min_normal_speed": 14.0,
 		"body_bounce_knockdown_duration": 1.2,
@@ -12,7 +13,7 @@
 		"fov": 80.0,
 		"mouse_sensitivity": 0.003,
 		"movement_mode": 1.0,
-		"auto_jump": 0.0,
+		"auto_jump": 1.0,
 		"crouch_slide": 0.0,
 		"ramp_launch": 0.0,
 		"wall_jump": 0.0,
@@ -54,7 +55,7 @@
 		"player_left": [65, -1],
 		"player_right": [68, -1],
 		"player_jump": [32, -1],
-		"player_crouch": [4194328, -1],
+		"player_crouch": [4194326, -1],
 		"player_special": [69, -1],
 		"player_walk": [4194325, -1]
 	}

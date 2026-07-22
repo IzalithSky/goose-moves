@@ -114,6 +114,8 @@ func _controller_specific_keybindings() -> void:
 		"player_special" in KeybindingsSettings.get_actions(Settings.CHARACTER_Q3))
 	check("Q3 Special / Wall Jump defaults to E",
 		_input_map_has_key("player_special", KEY_E))
+	check("Q3 crouch defaults to Ctrl",
+		_input_map_has_key("player_crouch", KEY_CTRL))
 	check("Q3 jump binding restored on controller switch",
 		_input_map_has_key("player_jump", KEY_J))
 
@@ -271,14 +273,18 @@ func _autojump_option() -> void:
 	menu.sync_from_settings()
 	var control_data := menu.controller_controls["auto_jump"] as Dictionary
 	var toggle := control_data["toggle"] as CheckButton
-	check("autojump uses a profile toggle", not toggle.button_pressed)
-	menu.on_controller_toggle_changed(true, "auto_jump")
-	check_approx("autojump profile toggle enables held jumping",
+	check("autojump uses a profile toggle", toggle.button_pressed)
+	check_approx("autojump defaults to enabled",
 		Settings.get_controller_setting("auto_jump", Settings.CHARACTER_Q3), 1.0)
 	check("live Q3 controller receives autojump setting",
 		(level.active_character as Q3CharacterController).auto_jump)
+	menu.on_controller_toggle_changed(false, "auto_jump")
+	check_approx("autojump profile toggle disables held jumping",
+		Settings.get_controller_setting("auto_jump", Settings.CHARACTER_Q3), 0.0)
+	check("live Q3 controller receives disabled autojump",
+		not (level.active_character as Q3CharacterController).auto_jump)
 	menu.queue_free()
-	Settings.set_controller_setting("auto_jump", 0.0, Settings.CHARACTER_Q3)
+	Settings.set_controller_setting("auto_jump", 1.0, Settings.CHARACTER_Q3)
 
 
 func _crouch_slide_option() -> void:
@@ -453,14 +459,20 @@ func _numeric_text_validation() -> void:
 
 func _input_map_has_key(action: String, keycode: Key) -> bool:
 	for event in InputMap.action_get_events(action):
-		if event is InputEventKey and (event as InputEventKey).physical_keycode == keycode:
+		if (
+			event is InputEventKey
+			and (
+				(event as InputEventKey).physical_keycode == keycode
+				or (event as InputEventKey).keycode == keycode
+			)
+		):
 			return true
 	return false
 
 
 func _reset_touched_controller_settings() -> void:
 	Settings.set_controller_setting("movement_mode", Q3CharacterController.MovementMode.VQ3, Settings.CHARACTER_Q3)
-	Settings.set_controller_setting("auto_jump", 0.0, Settings.CHARACTER_Q3)
+	Settings.set_controller_setting("auto_jump", 1.0, Settings.CHARACTER_Q3)
 	Settings.set_controller_setting("crouch_slide", 0.0, Settings.CHARACTER_Q3)
 	Settings.set_controller_setting("ramp_launch", 0.0, Settings.CHARACTER_Q3)
 	Settings.set_controller_setting("wall_jump", 0.0, Settings.CHARACTER_Q3)

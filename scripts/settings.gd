@@ -48,7 +48,7 @@ const Q3_SETTING_DEFS: Array[Dictionary] = [
 		{"label": "VQ3 (current)", "value": Q3CC.MovementMode.VQ3},
 		{"label": "Warsow Classic (CPM-like)", "value": Q3CC.MovementMode.WARSOW_CLASSIC},
 	]},
-	{"key": "auto_jump", "label": "Autojump", "default": 0.0, "min": 0.0, "max": 1.0, "step": 1.0, "control": "toggle"},
+	{"key": "auto_jump", "label": "Autojump", "default": 1.0, "min": 0.0, "max": 1.0, "step": 1.0, "control": "toggle"},
 	{"key": "crouch_slide", "label": "Crouch slide", "default": 0.0, "min": 0.0, "max": 1.0, "step": 1.0, "control": "toggle"},
 	{"key": "ramp_launch", "label": "Steep-ramp launch", "default": 0.0, "min": 0.0, "max": 1.0, "step": 1.0, "control": "toggle"},
 	{"key": "wall_jump", "label": "Wall jump", "default": 0.0, "min": 0.0, "max": 1.0, "step": 1.0, "control": "toggle"},
@@ -118,6 +118,7 @@ const FLIGHT_SETTING_DEFS: Array[Dictionary] = [
 var Q3_N_FLIGHT_SETTING_DEFS := [
 	{"key": "flight_hold_threshold", "label": "Hold jump for flight", "default": Q3_N_FLIGHT_CC.DEFAULT_FLIGHT_HOLD_THRESHOLD, "min": 0.0, "max": 2.0, "step": 0.05, "format": "%.2f", "suffix": " s"},
 	{"key": "flight_no_contact_threshold", "label": "Airborne time for flight", "default": Q3_N_FLIGHT_CC.DEFAULT_FLIGHT_NO_CONTACT_THRESHOLD, "min": 0.0, "max": 2.0, "step": 0.05, "format": "%.2f", "suffix": " s"},
+	{"key": "flight_min_activation_speed", "label": "Minimum flight speed", "default": Q3_N_FLIGHT_CC.DEFAULT_FLIGHT_MIN_ACTIVATION_SPEED, "min": 0.0, "max": 80.0, "step": 0.1, "format": "%.1f", "suffix": " m/s"},
 	{"key": "body_bounce", "label": "Body bounce knockdown", "default": Q3_N_FLIGHT_CC.DEFAULT_BODY_BOUNCE_ENABLED, "min": 0.0, "max": 1.0, "step": 1.0, "control": "toggle"},
 	{"key": "body_bounce_min_normal_speed", "label": "Bounce impact speed", "default": Q3_N_FLIGHT_CC.DEFAULT_BODY_BOUNCE_MIN_NORMAL_SPEED, "min": 0.0, "max": 80.0, "step": 0.1, "format": "%.1f", "suffix": " m/s"},
 	{"key": "body_bounce_knockdown_duration", "label": "Bounce knockdown time", "default": Q3_N_FLIGHT_CC.DEFAULT_BODY_BOUNCE_KNOCKDOWN_DURATION, "min": 0.0, "max": 5.0, "step": 0.05, "format": "%.2f", "suffix": " s"},

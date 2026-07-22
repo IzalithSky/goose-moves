@@ -3,6 +3,7 @@ extends CharacterBody3D
 
 const DEFAULT_FLIGHT_HOLD_THRESHOLD := 0.3
 const DEFAULT_FLIGHT_NO_CONTACT_THRESHOLD := 0.3
+const DEFAULT_FLIGHT_MIN_ACTIVATION_SPEED := 12.0
 const DEFAULT_BODY_BOUNCE_ENABLED := 1.0
 const DEFAULT_BODY_BOUNCE_MIN_NORMAL_SPEED := 14.0
 const DEFAULT_BODY_BOUNCE_KNOCKDOWN_DURATION := 1.2
@@ -39,6 +40,7 @@ var flight_motor := FLIGHT_MOVEMENT_MOTOR.new()
 var mode := Mode.Q3
 var flight_hold_threshold := DEFAULT_FLIGHT_HOLD_THRESHOLD
 var flight_no_contact_threshold := DEFAULT_FLIGHT_NO_CONTACT_THRESHOLD
+var flight_min_activation_speed := DEFAULT_FLIGHT_MIN_ACTIVATION_SPEED
 var body_bounce_enabled := DEFAULT_BODY_BOUNCE_ENABLED >= 0.5
 var body_bounce_min_normal_speed := DEFAULT_BODY_BOUNCE_MIN_NORMAL_SPEED
 var body_bounce_knockdown_duration := DEFAULT_BODY_BOUNCE_KNOCKDOWN_DURATION
@@ -166,6 +168,10 @@ func _apply_controller_settings() -> void:
 		"flight_no_contact_threshold",
 		Settings.CHARACTER_Q3_N_FLIGHT,
 	)
+	flight_min_activation_speed = Settings.get_controller_setting(
+		"flight_min_activation_speed",
+		Settings.CHARACTER_Q3_N_FLIGHT,
+	)
 	body_bounce_enabled = Settings.get_controller_setting(
 		"body_bounce",
 		Settings.CHARACTER_Q3_N_FLIGHT,
@@ -206,6 +212,7 @@ func _can_activate_flight() -> bool:
 		not _is_knocked_down()
 		and flap_hold_time >= flight_hold_threshold
 		and no_surface_contact_time >= flight_no_contact_threshold
+		and velocity.length() >= flight_min_activation_speed
 	)
 
 

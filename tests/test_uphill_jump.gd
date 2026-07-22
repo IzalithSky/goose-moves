@@ -13,6 +13,7 @@ func _ready() -> void:
 	c = CONTROLLER_SCENE.instantiate()
 	c.position = Vector3(-20, -17, 0)
 	add_child(c)
+	c.auto_jump = false
 
 
 func _goto(next: String) -> void:

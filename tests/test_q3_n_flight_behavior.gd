@@ -57,6 +57,7 @@ func _direct_transitions() -> void:
 		return
 	check("hybrid settings hide Q3 size X", not _has_hybrid_setting("character_size_x"))
 	check("hybrid settings expose no-contact flight gate", _has_hybrid_setting("flight_no_contact_threshold"))
+	check("hybrid settings expose flight speed gate", _has_hybrid_setting("flight_min_activation_speed"))
 	check("hybrid settings expose flight first-person camera", _has_hybrid_setting("first_person"))
 	check("hybrid settings expose FBW direct-pitch angle", _has_hybrid_setting("camera_fly_by_wire_pitch_window"))
 	check("hybrid settings expose body bounce toggle", _has_hybrid_setting("body_bounce"))
@@ -68,6 +69,8 @@ func _direct_transitions() -> void:
 	check_approx("hybrid body bounce impact defaults to 14 m/s", _hybrid_setting_default("body_bounce_min_normal_speed"), 14.0, 0.001)
 	check_approx("hybrid body bounce knockdown defaults to 1.2s", _hybrid_setting_default("body_bounce_knockdown_duration"), 1.2, 0.001)
 	check_approx("hybrid FBW direct-pitch angle defaults to 15 deg", _hybrid_setting_default("camera_fly_by_wire_pitch_window"), 15.0, 0.001)
+	check_approx("hybrid flight speed gate defaults to 12 m/s", _hybrid_setting_default("flight_min_activation_speed"), 12.0, 0.001)
+	check_approx("hybrid Q3 autojump defaults enabled", _hybrid_setting_default("auto_jump"), 1.0, 0.001)
 	check_approx(
 		"hybrid Q3 movement defaults CPM-like",
 		_hybrid_setting_default("movement_mode"),
@@ -206,6 +209,7 @@ func _low_hold_settle() -> void:
 	c.q3_motor.pitch = c.head.rotation.x
 	c.flight_hold_threshold = 0.04
 	c.flight_no_contact_threshold = 0.08
+	c.flight_min_activation_speed = 0.0
 	c.flap_hold_time = 0.0
 	c.no_surface_contact_time = 0.0
 	checked_no_contact_gate = false
@@ -234,11 +238,15 @@ func _low_hold_to_flight() -> void:
 	c.velocity = Vector3.ZERO
 	c.flight_hold_threshold = 0.05
 	c.flight_no_contact_threshold = 0.05
+	c.flight_min_activation_speed = 12.0
 	Input.action_press("player_jump")
 	_goto("hold_to_flight")
 
 
 func _hold_to_flight() -> void:
+	if phase_frame == 4:
+		check("held jump waits for minimum flight speed", c.mode == c.Mode.Q3)
+		c.velocity = Vector3(0.0, 0.0, -12.0)
 	if phase_frame < 2:
 		check("short jump hold stays in Q3", c.mode == c.Mode.Q3)
 		return

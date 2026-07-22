@@ -138,8 +138,9 @@ normal_speed = max(0.0, -impact_velocity.dot(collision_normal))
 ```
 
 If the strongest impact exceeds the bounce threshold, velocity is reflected
-around that normal and scaled by restitution. The knockdown timer suppresses Q3
-control and blocks flight activation until it expires.
+around that normal, scaled by restitution, then clamped by the bounce speed cap
+when the cap is above zero. The knockdown timer suppresses Q3 control and blocks
+flight activation until it expires.
 
 ## Flight Aerodynamics
 
@@ -238,6 +239,7 @@ Use these settings as design levers rather than isolated sliders.
 | `body_bounce` | Enable reflected high-speed impacts and knockdown | Keep impacts under normal collision response |
 | `body_bounce_min_normal_speed` | Trigger bounce only on harder impacts | Make more collisions cause bounce/knockdown |
 | `body_bounce_restitution` | Preserve more speed after the reflection | Bleed more speed on impact |
+| `body_bounce_max_speed` | Allow faster post-bounce launches | Cap crash bounce speed more aggressively; `0` disables the cap |
 | `body_bounce_knockdown_duration` | Make crashes cost more control time | Restore control faster |
 
 ## Practical Recipes

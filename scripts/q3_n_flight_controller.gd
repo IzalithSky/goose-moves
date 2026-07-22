@@ -8,6 +8,7 @@ const DEFAULT_BODY_BOUNCE_ENABLED := 1.0
 const DEFAULT_BODY_BOUNCE_MIN_NORMAL_SPEED := 14.0
 const DEFAULT_BODY_BOUNCE_KNOCKDOWN_DURATION := 1.2
 const DEFAULT_BODY_BOUNCE_RESTITUTION := 0.75
+const DEFAULT_BODY_BOUNCE_MAX_SPEED := 16.0
 const CAMERA_TRANSITION_DURATION := 0.2
 const FLIGHT_COLLISION_SIZE := Vector3(1.2, 1.2, 1.2)
 const Q3_MOVEMENT_MOTOR := preload("res://scripts/q3_movement_motor.gd")
@@ -45,6 +46,7 @@ var body_bounce_enabled := DEFAULT_BODY_BOUNCE_ENABLED >= 0.5
 var body_bounce_min_normal_speed := DEFAULT_BODY_BOUNCE_MIN_NORMAL_SPEED
 var body_bounce_knockdown_duration := DEFAULT_BODY_BOUNCE_KNOCKDOWN_DURATION
 var body_bounce_restitution := DEFAULT_BODY_BOUNCE_RESTITUTION
+var body_bounce_max_speed := DEFAULT_BODY_BOUNCE_MAX_SPEED
 var knockdown_time_remaining := 0.0
 var flap_hold_time := 0.0
 var no_surface_contact_time := 0.0
@@ -191,6 +193,10 @@ func _apply_controller_settings() -> void:
 		"body_bounce_restitution",
 		Settings.CHARACTER_Q3_N_FLIGHT,
 	)
+	body_bounce_max_speed = Settings.get_controller_setting(
+		"body_bounce_max_speed",
+		Settings.CHARACTER_Q3_N_FLIGHT,
+	)
 
 
 func _update_flap_hold(delta: float) -> void:
@@ -257,7 +263,10 @@ func _get_body_bounce_impact(impact_velocity: Vector3) -> Dictionary:
 func _get_body_bounce_velocity(impact_velocity: Vector3, normal: Vector3) -> Vector3:
 	var normalized_normal := normal.normalized()
 	var reflected := impact_velocity - (2.0 * impact_velocity.dot(normalized_normal) * normalized_normal)
-	return reflected * body_bounce_restitution
+	var bounced_velocity := reflected * body_bounce_restitution
+	if body_bounce_max_speed > 0.0 and bounced_velocity.length() > body_bounce_max_speed:
+		return bounced_velocity.normalized() * body_bounce_max_speed
+	return bounced_velocity
 
 
 func _start_knockdown() -> void:

@@ -11,6 +11,7 @@
 		"body_bounce_min_normal_speed": 14.0,
 		"body_bounce_knockdown_duration": 1.2,
 		"body_bounce_restitution": 0.75,
+		"body_bounce_max_speed": 16.0,
 		"fov": 80.0,
 		"mouse_sensitivity": 0.003,
 		"movement_mode": 1.0,

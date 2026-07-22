@@ -127,6 +127,7 @@ var Q3_N_FLIGHT_SETTING_DEFS := [
 	{"key": "body_bounce_min_normal_speed", "label": "Bounce impact speed", "default": Q3_N_FLIGHT_CC.DEFAULT_BODY_BOUNCE_MIN_NORMAL_SPEED, "min": 0.0, "max": 80.0, "step": 0.1, "format": "%.1f", "suffix": " m/s"},
 	{"key": "body_bounce_knockdown_duration", "label": "Bounce knockdown time", "default": Q3_N_FLIGHT_CC.DEFAULT_BODY_BOUNCE_KNOCKDOWN_DURATION, "min": 0.0, "max": 5.0, "step": 0.05, "format": "%.2f", "suffix": " s"},
 	{"key": "body_bounce_restitution", "label": "Bounce restitution", "default": Q3_N_FLIGHT_CC.DEFAULT_BODY_BOUNCE_RESTITUTION, "min": 0.0, "max": 1.5, "step": 0.05, "format": "%.2f"},
+	{"key": "body_bounce_max_speed", "label": "Bounce speed cap", "default": Q3_N_FLIGHT_CC.DEFAULT_BODY_BOUNCE_MAX_SPEED, "min": 0.0, "max": 80.0, "step": 0.1, "format": "%.1f", "suffix": " m/s"},
 ] + Q3_SETTING_DEFS + [
 	{"key": "camera_distance", "label": "Flight camera distance", "default": FLIGHT_CC.DEFAULT_CAMERA_DISTANCE, "min": 1.0, "max": 15.0, "step": 0.1, "format": "%.1f", "suffix": " m"},
 	{"key": "first_person", "label": "Flight first-person camera", "default": FLIGHT_CC.DEFAULT_FIRST_PERSON_ENABLED, "min": 0.0, "max": 1.0, "step": 1.0, "control": "toggle"},

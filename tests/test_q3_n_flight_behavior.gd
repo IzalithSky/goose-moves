@@ -65,10 +65,12 @@ func _direct_transitions() -> void:
 	check("hybrid settings expose body bounce impact speed", _has_hybrid_setting("body_bounce_min_normal_speed"))
 	check("hybrid settings expose body bounce knockdown time", _has_hybrid_setting("body_bounce_knockdown_duration"))
 	check("hybrid settings expose body bounce restitution", _has_hybrid_setting("body_bounce_restitution"))
+	check("hybrid settings expose body bounce speed cap", _has_hybrid_setting("body_bounce_max_speed"))
 	check_approx("hybrid FOV defaults to 80", _hybrid_setting_default("fov"), 80.0, 0.001)
 	check_approx("hybrid body bounce defaults enabled", _hybrid_setting_default("body_bounce"), 1.0, 0.001)
 	check_approx("hybrid body bounce impact defaults to 14 m/s", _hybrid_setting_default("body_bounce_min_normal_speed"), 14.0, 0.001)
 	check_approx("hybrid body bounce knockdown defaults to 1.2s", _hybrid_setting_default("body_bounce_knockdown_duration"), 1.2, 0.001)
+	check_approx("hybrid body bounce speed cap defaults to 16 m/s", _hybrid_setting_default("body_bounce_max_speed"), 16.0, 0.001)
 	check_approx("hybrid FBW direct-pitch angle defaults to 15 deg", _hybrid_setting_default("camera_fly_by_wire_pitch_window"), 15.0, 0.001)
 	check_approx("hybrid flight speed gate defaults to 12 m/s", _hybrid_setting_default("flight_min_activation_speed"), 12.0, 0.001)
 	check_approx("hybrid Q3 autojump defaults enabled", _hybrid_setting_default("auto_jump"), 1.0, 0.001)
@@ -101,10 +103,18 @@ func _direct_transitions() -> void:
 	check_vec3("hybrid Q3 character size matches flight collision size", c.q3_motor.character_size, c.FLIGHT_COLLISION_SIZE, 0.001)
 	check_approx("hybrid Q3 hull stays feet anchored", c.collision_shape.position.y, c.FLIGHT_COLLISION_SIZE.y * 0.5, 0.001)
 	c.body_bounce_restitution = 0.5
+	c.body_bounce_max_speed = 30.0
 	check_vec3(
 		"hybrid body bounce reflects by surface normal",
 		c._get_body_bounce_velocity(Vector3(2, 0, -12), Vector3(0, 0, 1)),
 		Vector3(1, 0, 6),
+		0.001,
+	)
+	c.body_bounce_max_speed = 3.0
+	check_vec3(
+		"hybrid body bounce caps reflected speed",
+		c._get_body_bounce_velocity(Vector3(0, 0, -12), Vector3(0, 0, 1)),
+		Vector3(0, 0, 3),
 		0.001,
 	)
 

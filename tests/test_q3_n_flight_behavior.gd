@@ -7,10 +7,15 @@ var phase := "direct_transitions"
 var phase_frame := 0
 var last_q3_position := Vector3.ZERO
 var checked_no_contact_gate := false
+var normal_landing_speed := 0.0
+var normal_decay_speed := 0.0
+var slick_was_airborne := false
+var normal_was_airborne := false
 
 
 func _ready() -> void:
 	add_static_box(Vector3(24, 0.2, 24), Transform3D(Basis.IDENTITY, Vector3(0, -0.1, 0)))
+	add_static_box(Vector3(12, 0.2, 12), Transform3D(Basis.IDENTITY, Vector3(20, -0.1, 0)), true)
 	add_static_box(Vector3(1, 6, 8), Transform3D(Basis.IDENTITY, Vector3(0, 3, -6)))
 	c = CONTROLLER_SCENE.instantiate()
 	c.position = Vector3(0, 3, 0)
@@ -66,6 +71,10 @@ func _direct_transitions() -> void:
 	check("hybrid settings expose body bounce knockdown time", _has_hybrid_setting("body_bounce_knockdown_duration"))
 	check("hybrid settings expose body bounce restitution", _has_hybrid_setting("body_bounce_restitution"))
 	check("hybrid settings expose body bounce speed cap", _has_hybrid_setting("body_bounce_max_speed"))
+	check("hybrid settings expose landing carry", _has_hybrid_setting("landing_carry"))
+	check("hybrid settings expose landing friction scale", _has_hybrid_setting("landing_friction_multiplier"))
+	check("hybrid settings expose landing carry duration", _has_hybrid_setting("landing_carry_duration"))
+	check("hybrid settings expose hard landing speed", _has_hybrid_setting("hard_landing_vertical_speed"))
 	check_approx("hybrid FOV defaults to 80", _hybrid_setting_default("fov"), 80.0, 0.001)
 	check_approx("hybrid body bounce defaults enabled", _hybrid_setting_default("body_bounce"), 1.0, 0.001)
 	check_approx("hybrid body bounce impact defaults to 18 m/s", _hybrid_setting_default("body_bounce_min_normal_speed"), 18.0, 0.001)
@@ -128,7 +137,10 @@ func _direct_transitions() -> void:
 	var q3_view_fov := q3_view_camera.fov
 	var takeoff_pitch_axis := _get_pitch_axis_from_view(q3_view_camera.global_basis)
 	c._enter_flight()
+	var flight_entry_state := c.get_movement_state()
 	check("direct transition enters flight mode", c.mode == c.Mode.FLIGHT)
+	check("movement state reports flight mode", flight_entry_state["mode"] == "flight")
+	check("movement state reports just-entered-flight", flight_entry_state["just_entered_flight"])
 	check_vec3("Q3 -> flight preserves velocity", c.velocity, Vector3(3, 4, -5), 0.001)
 	check("Q3 -> flight starts camera blend", c.camera_transition_active)
 	check("Q3 -> flight uses transition camera during blend", c.transition_camera.current)
@@ -162,7 +174,10 @@ func _direct_transitions() -> void:
 	var flight_view_transform := c.get_view_camera().global_transform
 	var flight_view_fov := c.get_view_camera().fov
 	c._enter_q3(true)
+	var q3_entry_state := c.get_movement_state()
 	check("direct transition returns to Q3 mode", c.mode == c.Mode.Q3)
+	check("movement state reports Q3 mode", q3_entry_state["mode"] == "q3")
+	check("movement state reports just-exited-flight", q3_entry_state["just_exited_flight"])
 	check_vec3("flight -> Q3 preserves velocity", c.velocity, Vector3(3, 4, -5), 0.001)
 	check_approx("flight -> Q3 snaps pitch upright", c.rotation.x, 0.0, 0.001)
 	check_approx("flight -> Q3 snaps roll upright", c.rotation.z, 0.0, 0.001)
@@ -323,4 +338,74 @@ func _flight_contact_bounces() -> void:
 	c._update_knockdown_hud()
 	check("knockdown restores Q3 control", c.q3_motor.control_enabled)
 	check("knockdown HUD clears active state", c.q3_hud.knockdown_sign_label.text == "-")
+	c.body_bounce_enabled = false
+	c.knockdown_time_remaining = 0.0
+	c.q3_motor.control_enabled = true
+	c.landing_carry_enabled = true
+	c.landing_friction_multiplier = 0.25
+	c.landing_carry_duration = 0.25
+	c.landing_carry_min_speed = 1.0
+	c.hard_landing_vertical_speed = 6.0
+	c._enter_q3(false)
+	c.global_position = Vector3(-4, 5, 4)
+	c.velocity = Vector3(8, -8, 0)
+	normal_was_airborne = false
+	_goto("normal_landing")
+
+
+func _horizontal_speed() -> float:
+	return Vector2(c.velocity.x, c.velocity.z).length()
+
+
+func _normal_landing() -> void:
+	if not normal_was_airborne:
+		if not c.is_on_floor():
+			normal_was_airborne = true
+			c.velocity = Vector3(8, -8, 0)
+		return
+	if not c.is_on_floor():
+		return
+	var state := c.get_movement_state()
+	normal_landing_speed = _horizontal_speed()
+	check("movement state reports just-landed", state["just_landed"])
+	check("movement state reports hard landing", state["hard_landed"])
+	check("movement state reports landing carry active", state["landing_carry_active"])
+	check("movement state reports ground landing surface", state["landing_surface_type"] == &"ground")
+	check_approx("landing preserves horizontal velocity initially", normal_landing_speed, 8.0, 0.05)
+	check_approx("state records landing horizontal speed", state["landing_horizontal_speed"], 8.0, 0.05)
+	check("state records measured landing impact speed", state["landing_vertical_impact_speed"] > 8.0)
+	_goto("normal_landing_decay")
+
+
+func _normal_landing_decay() -> void:
+	if phase_frame < 4:
+		return
+	normal_decay_speed = _horizontal_speed()
+	check("landing speed decays through friction", normal_decay_speed < normal_landing_speed)
+	check("landing friction does not instantly stop movement", normal_decay_speed > 6.0)
+	c.global_position = Vector3(20, 5, 0)
+	c.velocity = Vector3(8, -8, 0)
+	c.movement_state.landing_carry_time_remaining = 0.0
+	slick_was_airborne = false
+	_goto("slick_landing")
+
+
+func _slick_landing() -> void:
+	if not slick_was_airborne:
+		if not c.is_on_floor():
+			slick_was_airborne = true
+			c.velocity = Vector3(8, -8, 0)
+		return
+	if not c.is_on_floor():
+		return
+	var state := c.get_movement_state()
+	check("movement state reports slick landing surface", state["landing_surface_type"] == &"slick")
+	check_approx("slick landing preserves horizontal velocity initially", _horizontal_speed(), 8.0, 0.05)
+	_goto("slick_landing_carry")
+
+
+func _slick_landing_carry() -> void:
+	if phase_frame < 4:
+		return
+	check("slick landing preserves more speed than normal ground", _horizontal_speed() > normal_decay_speed)
 	finish()

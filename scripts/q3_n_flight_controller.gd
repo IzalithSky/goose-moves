@@ -9,11 +9,17 @@ const DEFAULT_BODY_BOUNCE_MIN_NORMAL_SPEED := 18.0
 const DEFAULT_BODY_BOUNCE_KNOCKDOWN_DURATION := 1.2
 const DEFAULT_BODY_BOUNCE_RESTITUTION := 0.75
 const DEFAULT_BODY_BOUNCE_MAX_SPEED := 16.0
+const DEFAULT_LANDING_CARRY_ENABLED := 1.0
+const DEFAULT_LANDING_FRICTION_MULTIPLIER := 0.5
+const DEFAULT_LANDING_CARRY_DURATION := 0.18
+const DEFAULT_LANDING_CARRY_MIN_SPEED := 3.0
+const DEFAULT_HARD_LANDING_VERTICAL_SPEED := 14.0
 const CAMERA_TRANSITION_DURATION := 0.2
 const FLIGHT_COLLISION_SIZE := Vector3(1.2, 1.2, 1.2)
 const Q3_MOVEMENT_MOTOR := preload("res://scripts/q3_movement_motor.gd")
 const FLIGHT_MOVEMENT_MOTOR := preload("res://scripts/flight_movement_motor.gd")
 const Q3_MOVEMENT_HUD := preload("res://scripts/q3_movement_hud.gd")
+const MOVEMENT_STATE_TRACKER := preload("res://scripts/movement_state_tracker.gd")
 
 enum Mode {
 	Q3,
@@ -47,9 +53,15 @@ var body_bounce_min_normal_speed := DEFAULT_BODY_BOUNCE_MIN_NORMAL_SPEED
 var body_bounce_knockdown_duration := DEFAULT_BODY_BOUNCE_KNOCKDOWN_DURATION
 var body_bounce_restitution := DEFAULT_BODY_BOUNCE_RESTITUTION
 var body_bounce_max_speed := DEFAULT_BODY_BOUNCE_MAX_SPEED
+var landing_carry_enabled := DEFAULT_LANDING_CARRY_ENABLED >= 0.5
+var landing_friction_multiplier := DEFAULT_LANDING_FRICTION_MULTIPLIER
+var landing_carry_duration := DEFAULT_LANDING_CARRY_DURATION
+var landing_carry_min_speed := DEFAULT_LANDING_CARRY_MIN_SPEED
+var hard_landing_vertical_speed := DEFAULT_HARD_LANDING_VERTICAL_SPEED
 var knockdown_time_remaining := 0.0
 var flap_hold_time := 0.0
 var no_surface_contact_time := 0.0
+var movement_state := MOVEMENT_STATE_TRACKER.new()
 var camera_transition_active := false
 var camera_transition_elapsed := 0.0
 var camera_transition_from_transform := Transform3D.IDENTITY
@@ -93,6 +105,7 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	movement_state.physics_tick(delta)
 	_update_knockdown_timer(delta)
 	if mode == Mode.FLIGHT:
 		if Input.is_action_pressed("player_crouch"):
@@ -108,18 +121,32 @@ func _physics_process(delta: float) -> void:
 			)
 			_enter_q3(true)
 			velocity = bounced_velocity
+			movement_state.record_crash(flight_bounce_impact)
 			_start_knockdown()
 		elif get_slide_collision_count() > 0:
+			var flight_landing_impact := _get_floor_impact(flight_impact_velocity)
 			_enter_q3(true)
+			_record_landing_and_preserve(flight_impact_velocity, flight_landing_impact)
 		return
 
 	q3_motor.control_enabled = not _is_knocked_down()
 	_update_flap_hold(delta)
+	var was_grounded := is_on_floor()
 	var q3_impact_velocity := velocity
+	q3_motor.ground_friction_multiplier = movement_state.get_landing_friction_multiplier(
+		landing_carry_enabled,
+		landing_friction_multiplier,
+	)
 	q3_motor.physics_tick(delta)
+	q3_motor.ground_friction_multiplier = 1.0
+	if not was_grounded and is_on_floor() and q3_impact_velocity.y <= 0.0:
+		_record_landing_and_preserve(q3_impact_velocity, _get_floor_impact(q3_impact_velocity))
+	elif was_grounded and not is_on_floor():
+		movement_state.record_takeoff(q3_impact_velocity)
 	var q3_bounce_impact := _get_body_bounce_impact(q3_impact_velocity)
 	if not q3_bounce_impact.is_empty():
 		velocity = _get_body_bounce_velocity(q3_impact_velocity, q3_bounce_impact["normal"] as Vector3)
+		movement_state.record_crash(q3_bounce_impact)
 		_start_knockdown()
 	_update_no_surface_contact_time(delta)
 	if _can_activate_flight():
@@ -153,6 +180,10 @@ func get_view_camera() -> Camera3D:
 	if q3_motor.third_person_enabled:
 		return third_person_camera
 	return camera
+
+
+func get_movement_state() -> Dictionary:
+	return movement_state.build_state(_get_movement_state_snapshot())
 
 
 func on_settings_changed() -> void:
@@ -197,6 +228,83 @@ func _apply_controller_settings() -> void:
 		"body_bounce_max_speed",
 		Settings.CHARACTER_Q3_N_FLIGHT,
 	)
+	landing_carry_enabled = Settings.get_controller_setting(
+		"landing_carry",
+		Settings.CHARACTER_Q3_N_FLIGHT,
+	) >= 0.5
+	landing_friction_multiplier = Settings.get_controller_setting(
+		"landing_friction_multiplier",
+		Settings.CHARACTER_Q3_N_FLIGHT,
+	)
+	landing_carry_duration = Settings.get_controller_setting(
+		"landing_carry_duration",
+		Settings.CHARACTER_Q3_N_FLIGHT,
+	)
+	landing_carry_min_speed = Settings.get_controller_setting(
+		"landing_carry_min_speed",
+		Settings.CHARACTER_Q3_N_FLIGHT,
+	)
+	hard_landing_vertical_speed = Settings.get_controller_setting(
+		"hard_landing_vertical_speed",
+		Settings.CHARACTER_Q3_N_FLIGHT,
+	)
+
+
+func _get_movement_state_snapshot() -> Dictionary:
+	var mode_name := "flight" if mode == Mode.FLIGHT else "q3"
+	return {
+		"controller": mode_name,
+		"mode": mode_name,
+		"position": global_position,
+		"velocity": velocity,
+		"facing_direction": -global_basis.z,
+		"grounded": is_on_floor(),
+		"swimming": q3_motor.water_level > 1,
+		"water_level": q3_motor.water_level,
+		"water_type": q3_motor.water_type,
+		"crouching": q3_motor.is_crouching,
+		"crouch_sliding": q3_motor.is_crouch_sliding,
+		"wall_contact": is_on_wall(),
+		"ceiling_contact": is_on_ceiling(),
+		"flight_activation_charging": mode == Mode.Q3 and flap_hold_time > 0.0,
+		"flight_activation_charge": flap_hold_time,
+		"flight_activation_threshold": flight_hold_threshold,
+		"knocked_down": _is_knocked_down(),
+		"crash_recovery_time_remaining": knockdown_time_remaining,
+	}
+
+
+func _record_landing_and_preserve(impact_velocity: Vector3, impact: Dictionary) -> void:
+	if impact.is_empty():
+		return
+	movement_state.record_landing(impact_velocity, impact, _get_landing_carry_config())
+	movement_state.apply_landing_carry_preservation(self, impact_velocity, _get_landing_carry_config())
+
+
+func _get_floor_impact(impact_velocity: Vector3) -> Dictionary:
+	return movement_state.get_floor_collision_impact(
+		self,
+		impact_velocity,
+		cos(floor_max_angle),
+		_get_surface_type(),
+	)
+
+
+func _get_surface_type() -> StringName:
+	if q3_motor.water_level > 0:
+		return q3_motor.water_type
+	if q3_motor.floor_is_slick:
+		return &"slick"
+	return &"ground"
+
+
+func _get_landing_carry_config() -> Dictionary:
+	return {
+		"enabled": landing_carry_enabled,
+		"duration": landing_carry_duration,
+		"min_speed": landing_carry_min_speed,
+		"hard_landing_vertical_speed": hard_landing_vertical_speed,
+	}
 
 
 func _update_flap_hold(delta: float) -> void:
@@ -305,6 +413,7 @@ func _enter_flight() -> void:
 	)
 	velocity = preserved_velocity
 	mode = Mode.FLIGHT
+	movement_state.record_entered_flight()
 	motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
 	floor_snap_length = 0.0
 	flap_hold_time = 0.0
@@ -373,6 +482,8 @@ func _enter_q3(snap_upright: bool) -> void:
 		head.rotation = Vector3(q3_motor.pitch, 0.0, 0.0)
 	velocity = preserved_velocity
 	mode = Mode.Q3
+	if should_blend_camera:
+		movement_state.record_exited_flight()
 	motion_mode = CharacterBody3D.MOTION_MODE_GROUNDED
 	q3_motor.control_enabled = not _is_knocked_down()
 	floor_stop_on_slope = false

@@ -128,6 +128,11 @@ var Q3_N_FLIGHT_SETTING_DEFS := [
 	{"key": "body_bounce_knockdown_duration", "label": "Bounce knockdown time", "default": Q3_N_FLIGHT_CC.DEFAULT_BODY_BOUNCE_KNOCKDOWN_DURATION, "min": 0.0, "max": 5.0, "step": 0.05, "format": "%.2f", "suffix": " s"},
 	{"key": "body_bounce_restitution", "label": "Bounce restitution", "default": Q3_N_FLIGHT_CC.DEFAULT_BODY_BOUNCE_RESTITUTION, "min": 0.0, "max": 1.5, "step": 0.05, "format": "%.2f"},
 	{"key": "body_bounce_max_speed", "label": "Bounce speed cap", "default": Q3_N_FLIGHT_CC.DEFAULT_BODY_BOUNCE_MAX_SPEED, "min": 0.0, "max": 80.0, "step": 0.1, "format": "%.1f", "suffix": " m/s"},
+	{"key": "landing_carry", "label": "Landing carry", "default": Q3_N_FLIGHT_CC.DEFAULT_LANDING_CARRY_ENABLED, "min": 0.0, "max": 1.0, "step": 1.0, "control": "toggle"},
+	{"key": "landing_friction_multiplier", "label": "Landing friction scale", "default": Q3_N_FLIGHT_CC.DEFAULT_LANDING_FRICTION_MULTIPLIER, "min": 0.0, "max": 2.0, "step": 0.05, "format": "%.2f"},
+	{"key": "landing_carry_duration", "label": "Landing carry time", "default": Q3_N_FLIGHT_CC.DEFAULT_LANDING_CARRY_DURATION, "min": 0.0, "max": 2.0, "step": 0.05, "format": "%.2f", "suffix": " s"},
+	{"key": "landing_carry_min_speed", "label": "Landing carry min speed", "default": Q3_N_FLIGHT_CC.DEFAULT_LANDING_CARRY_MIN_SPEED, "min": 0.0, "max": 80.0, "step": 0.1, "format": "%.1f", "suffix": " m/s"},
+	{"key": "hard_landing_vertical_speed", "label": "Hard landing speed", "default": Q3_N_FLIGHT_CC.DEFAULT_HARD_LANDING_VERTICAL_SPEED, "min": 0.0, "max": 80.0, "step": 0.1, "format": "%.1f", "suffix": " m/s"},
 ] + Q3_SETTING_DEFS + [
 	{"key": "camera_distance", "label": "Flight camera distance", "default": FLIGHT_CC.DEFAULT_CAMERA_DISTANCE, "min": 1.0, "max": 15.0, "step": 0.1, "format": "%.1f", "suffix": " m"},
 	{"key": "first_person", "label": "Flight first-person camera", "default": FLIGHT_CC.DEFAULT_FIRST_PERSON_ENABLED, "min": 0.0, "max": 1.0, "step": 1.0, "control": "toggle"},

@@ -453,6 +453,8 @@ func step() -> void:
 		max_abs_sideslip_deg = maxf(max_abs_sideslip_deg, absf(c.sideslip_deg))
 
 	if frame == 3:
+		check("flight movement state reports flight mode", c.get_movement_state()["mode"] == "flight")
+		check("flight movement state reports airborne", c.get_movement_state()["airborne"])
 		check("S maps to pitch-up input", c.pitch_control_input > 0.9)
 		check("D maps to roll-right input", c.roll_control_input > 0.9)
 		_check_knife_edge_pitch("S pitch-up", 1.0, c._positive_max_lift_aoa_deg)

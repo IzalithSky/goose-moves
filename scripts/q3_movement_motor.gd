@@ -239,6 +239,7 @@ var floor_is_slick := false
 var is_crouching := false
 var is_crouch_sliding := false
 var crouch_slide_time_remaining := 0.0
+var ground_friction_multiplier := 1.0
 var wall_jump_cooldown_remaining := 0.0
 var body_shape: BoxShape3D
 var body_mesh: BoxMesh
@@ -769,11 +770,11 @@ func _get_ground_acceleration() -> float:
 func _get_ground_friction() -> float:
 	var ground_friction := WARSOW_FRICTION if movement_mode == MovementMode.WARSOW_CLASSIC else friction
 	if not crouch_slide_enabled or not is_crouch_sliding:
-		return ground_friction
+		return ground_friction * ground_friction_multiplier
 	if crouch_slide_time_remaining >= WARSOW_CROUCH_SLIDE_FADE:
 		return 0.0
 	var fade_fraction := maxf(crouch_slide_time_remaining, 0.0) / WARSOW_CROUCH_SLIDE_FADE
-	return ground_friction * (1.0 - sqrt(fade_fraction))
+	return ground_friction * (1.0 - sqrt(fade_fraction)) * ground_friction_multiplier
 
 
 func _get_ground_stop_speed() -> float:

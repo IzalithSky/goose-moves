@@ -3,6 +3,7 @@ extends CharacterBody3D
 
 const Q3_MOVEMENT_MOTOR := preload("res://scripts/q3_movement_motor.gd")
 const Q3_MOVEMENT_HUD := preload("res://scripts/q3_movement_hud.gd")
+const MOVEMENT_STATE_TRACKER := preload("res://scripts/movement_state_tracker.gd")
 const Q3_UNITS_PER_FOOT := Q3_MOVEMENT_MOTOR.Q3_UNITS_PER_FOOT
 const METERS_PER_FOOT := Q3_MOVEMENT_MOTOR.METERS_PER_FOOT
 const Q3_METERS_PER_UNIT := Q3_MOVEMENT_MOTOR.Q3_METERS_PER_UNIT
@@ -80,6 +81,7 @@ enum MovementMode {
 @onready var hud: Q3_MOVEMENT_HUD = $HUD
 
 var motor := Q3_MOVEMENT_MOTOR.new()
+var movement_state := MOVEMENT_STATE_TRACKER.new()
 
 var movement_mode:
 	get:
@@ -310,7 +312,21 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	movement_state.physics_tick(delta)
+	var was_grounded := is_on_floor()
+	var impact_velocity := velocity
 	motor.physics_tick(delta)
+	if not was_grounded and is_on_floor() and impact_velocity.y <= 0.0:
+		var impact := movement_state.get_floor_collision_impact(
+			self,
+			impact_velocity,
+			cos(floor_max_angle),
+			_get_surface_type(),
+		)
+		if not impact.is_empty():
+			movement_state.record_landing(impact_velocity, impact)
+	elif was_grounded and not is_on_floor():
+		movement_state.record_takeoff(impact_velocity)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -319,6 +335,32 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func on_settings_changed() -> void:
 	motor.on_settings_changed()
+
+
+func get_movement_state() -> Dictionary:
+	return movement_state.build_state({
+		"controller": "q3",
+		"mode": "q3",
+		"position": global_position,
+		"velocity": velocity,
+		"facing_direction": -global_basis.z,
+		"grounded": is_on_floor(),
+		"swimming": water_level > 1,
+		"water_level": water_level,
+		"water_type": water_type,
+		"crouching": is_crouching,
+		"crouch_sliding": is_crouch_sliding,
+		"wall_contact": is_on_wall(),
+		"ceiling_contact": is_on_ceiling(),
+	})
+
+
+func _get_surface_type() -> StringName:
+	if water_level > 0:
+		return water_type
+	if floor_is_slick:
+		return &"slick"
+	return &"ground"
 
 
 func _get_movement_input() -> Vector2:

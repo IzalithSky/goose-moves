@@ -2,6 +2,7 @@ class_name FlightController
 extends CharacterBody3D
 
 const FLIGHT_MOVEMENT_MOTOR := preload("res://scripts/flight_movement_motor.gd")
+const MOVEMENT_STATE_TRACKER := preload("res://scripts/movement_state_tracker.gd")
 const DEFAULT_CAMERA_DISTANCE := FLIGHT_MOVEMENT_MOTOR.DEFAULT_CAMERA_DISTANCE
 const DEFAULT_CAMERA_HEIGHT := FLIGHT_MOVEMENT_MOTOR.DEFAULT_CAMERA_HEIGHT
 const DEFAULT_GRAVITY_SCALE := FLIGHT_MOVEMENT_MOTOR.DEFAULT_GRAVITY_SCALE
@@ -54,6 +55,7 @@ const DEFAULT_DRAG_TABLE := FLIGHT_MOVEMENT_MOTOR.DEFAULT_DRAG_TABLE
 @onready var status_label: Label = $HUD/StatusLabel
 
 var motor := FLIGHT_MOVEMENT_MOTOR.new()
+var movement_state := MOVEMENT_STATE_TRACKER.new()
 var _pending_view_transform := Transform3D.IDENTITY
 var _has_pending_view_transform := false
 
@@ -232,7 +234,19 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	movement_state.physics_tick(delta)
+	var was_grounded := is_on_floor()
+	var impact_velocity := velocity
 	motor.physics_tick(delta)
+	if not was_grounded and is_on_floor() and impact_velocity.y <= 0.0:
+		var impact := movement_state.get_floor_collision_impact(
+			self,
+			impact_velocity,
+			FLOOR_NORMAL_Y,
+			&"ground",
+		)
+		if not impact.is_empty():
+			movement_state.record_landing(impact_velocity, impact)
 
 
 func _input(event: InputEvent) -> void:
@@ -258,6 +272,18 @@ func place_at_view(view_transform: Transform3D) -> void:
 
 func get_view_camera() -> Camera3D:
 	return motor.get_view_camera()
+
+func get_movement_state() -> Dictionary:
+	return movement_state.build_state({
+		"controller": "flight",
+		"mode": "flight",
+		"position": global_position,
+		"velocity": velocity,
+		"facing_direction": -global_basis.z,
+		"grounded": is_on_floor(),
+		"wall_contact": is_on_wall(),
+		"ceiling_contact": is_on_ceiling(),
+	})
 
 func _collect_inputs(delta: float) -> void:
 	motor._collect_inputs(delta)

@@ -66,6 +66,8 @@ func _settle() -> void:
 	floor_y = c.global_position.y
 	check_approx("standing at floor height", floor_y, 0.0, 0.01)
 	check("player hull uses Q3's box shape", c.body_shape is BoxShape3D)
+	check("Q3 movement state reports Q3 mode", c.get_movement_state()["mode"] == "q3")
+	check("Q3 movement state reports grounded", c.get_movement_state()["grounded"])
 	check_approx("player hull width = 30 u", c.body_shape.size.x, 30.0 * U)
 	check_approx("player hull depth = 30 u", c.body_shape.size.z, 30.0 * U)
 	_goto("idle")

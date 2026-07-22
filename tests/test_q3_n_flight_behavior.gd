@@ -68,7 +68,7 @@ func _direct_transitions() -> void:
 	check("hybrid settings expose body bounce speed cap", _has_hybrid_setting("body_bounce_max_speed"))
 	check_approx("hybrid FOV defaults to 80", _hybrid_setting_default("fov"), 80.0, 0.001)
 	check_approx("hybrid body bounce defaults enabled", _hybrid_setting_default("body_bounce"), 1.0, 0.001)
-	check_approx("hybrid body bounce impact defaults to 14 m/s", _hybrid_setting_default("body_bounce_min_normal_speed"), 14.0, 0.001)
+	check_approx("hybrid body bounce impact defaults to 18 m/s", _hybrid_setting_default("body_bounce_min_normal_speed"), 18.0, 0.001)
 	check_approx("hybrid body bounce knockdown defaults to 1.2s", _hybrid_setting_default("body_bounce_knockdown_duration"), 1.2, 0.001)
 	check_approx("hybrid body bounce speed cap defaults to 16 m/s", _hybrid_setting_default("body_bounce_max_speed"), 16.0, 0.001)
 	check_approx("hybrid FBW direct-pitch angle defaults to 15 deg", _hybrid_setting_default("camera_fly_by_wire_pitch_window"), 15.0, 0.001)

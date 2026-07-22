@@ -115,7 +115,7 @@ const FLIGHT_SETTING_DEFS: Array[Dictionary] = [
 	{"key": "camera_fly_by_wire_target_distance", "label": "FBW target distance", "default": FLIGHT_CC.DEFAULT_CAMERA_FLY_BY_WIRE_TARGET_DISTANCE, "min": 5.0, "max": 500.0, "step": 5.0, "format": "%.0f", "suffix": " m"},
 	{"key": "camera_fly_by_wire_pitch_window", "label": "FBW direct-pitch angle", "default": FLIGHT_CC.DEFAULT_CAMERA_FLY_BY_WIRE_PITCH_WINDOW_DEGREES, "min": 0.0, "max": 90.0, "step": 1.0, "format": "%.0f", "suffix": "°"},
 	{"key": "sideslip_compensation", "label": "Sideslip compensation", "default": FLIGHT_CC.DEFAULT_SIDESLIP_COMPENSATION_ENABLED, "min": 0.0, "max": 1.0, "step": 1.0, "control": "toggle"},
-	{"key": "sideslip_compensation_max_yaw", "label": "Sideslip yaw step", "default": FLIGHT_CC.DEFAULT_SIDESLIP_COMPENSATION_MAX_YAW_DEGREES, "min": 0.0, "max": 180.0, "step": 1.0, "format": "%.0f", "suffix": "°/frame"},
+	{"key": "sideslip_compensation_max_yaw", "label": "Sideslip yaw step", "default": FLIGHT_CC.DEFAULT_SIDESLIP_COMPENSATION_MAX_YAW_DEGREES, "min": 0.0, "max": 180.0, "step": 0.01, "format": "%.2f", "suffix": "°/frame"},
 	{"key": "reference_area", "label": "Reference area", "default": FLIGHT_CC.DEFAULT_REFERENCE_AREA, "min": 0.1, "max": 50.0, "step": 0.1, "format": "%.1f", "suffix": " m²"},
 	{"key": "extra_linear_drag_quadratic_coefficient", "label": "Extra quadratic drag", "default": FLIGHT_CC.DEFAULT_EXTRA_LINEAR_DRAG_QUADRATIC_COEFFICIENT, "min": 0.0, "max": 1.0, "step": 0.001, "format": "%.3f"},
 ]
@@ -140,7 +140,7 @@ var Q3_N_FLIGHT_SETTING_DEFS := [
 	{"key": "camera_fly_by_wire_target_distance", "label": "FBW target distance", "default": FLIGHT_CC.DEFAULT_CAMERA_FLY_BY_WIRE_TARGET_DISTANCE, "min": 5.0, "max": 500.0, "step": 5.0, "format": "%.0f", "suffix": " m"},
 	{"key": "camera_fly_by_wire_pitch_window", "label": "FBW direct-pitch angle", "default": FLIGHT_CC.DEFAULT_CAMERA_FLY_BY_WIRE_PITCH_WINDOW_DEGREES, "min": 0.0, "max": 90.0, "step": 1.0, "format": "%.0f", "suffix": "°"},
 	{"key": "sideslip_compensation", "label": "Sideslip compensation", "default": FLIGHT_CC.DEFAULT_SIDESLIP_COMPENSATION_ENABLED, "min": 0.0, "max": 1.0, "step": 1.0, "control": "toggle"},
-	{"key": "sideslip_compensation_max_yaw", "label": "Sideslip yaw step", "default": FLIGHT_CC.DEFAULT_SIDESLIP_COMPENSATION_MAX_YAW_DEGREES, "min": 0.0, "max": 180.0, "step": 1.0, "format": "%.0f", "suffix": "°/frame"},
+	{"key": "sideslip_compensation_max_yaw", "label": "Sideslip yaw step", "default": FLIGHT_CC.DEFAULT_SIDESLIP_COMPENSATION_MAX_YAW_DEGREES, "min": 0.0, "max": 180.0, "step": 0.01, "format": "%.2f", "suffix": "°/frame"},
 	{"key": "reference_area", "label": "Reference area", "default": FLIGHT_CC.DEFAULT_REFERENCE_AREA, "min": 0.1, "max": 50.0, "step": 0.1, "format": "%.1f", "suffix": " m²"},
 	{"key": "extra_linear_drag_quadratic_coefficient", "label": "Extra quadratic drag", "default": FLIGHT_CC.DEFAULT_EXTRA_LINEAR_DRAG_QUADRATIC_COEFFICIENT, "min": 0.0, "max": 1.0, "step": 0.001, "format": "%.3f"},
 ]

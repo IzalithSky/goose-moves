@@ -15,6 +15,8 @@ extends CanvasLayer
 @onready var knockdown_sign_label: Label = $BottomBar/FlagGrid/KnockdownSignLabel
 @onready var knockdown_name_label: Label = $BottomBar/FlagGrid/KnockdownNameLabel
 
+var _displayed_knockdown_time := -1.0
+
 
 func update_values(
 	q3_speed: float,
@@ -42,5 +44,8 @@ func update_values(
 
 
 func set_knockdown_time(time_remaining: float) -> void:
+	if time_remaining == _displayed_knockdown_time:
+		return
+	_displayed_knockdown_time = time_remaining
 	knockdown_sign_label.text = "+" if time_remaining > 0.0 else "-"
 	knockdown_name_label.text = "KNOCKDOWN %.2fs" % time_remaining if time_remaining > 0.0 else "KNOCKDOWN"

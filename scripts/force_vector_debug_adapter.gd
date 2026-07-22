@@ -9,18 +9,21 @@ var target: Node3D
 var settings_controller_id := ""
 var renderer: MeshInstance3D
 var active := true
+var _enabled := false
 
 
 func _init(target_node: Node3D, controller_id: String) -> void:
 	target = target_node
 	settings_controller_id = controller_id
+	sync_from_settings()
 
 
 func sync_from_settings() -> void:
 	if target == null:
 		return
 
-	if not is_enabled():
+	_enabled = active and Settings.get_controller_setting(SETTING_KEY, settings_controller_id) >= 0.5
+	if not _enabled:
 		if renderer != null:
 			renderer.queue_free()
 			renderer = null
@@ -30,7 +33,7 @@ func sync_from_settings() -> void:
 
 
 func is_enabled() -> bool:
-	return active and Settings.get_controller_setting(SETTING_KEY, settings_controller_id) >= 0.5
+	return _enabled
 
 
 func set_active(value: bool) -> void:
@@ -58,7 +61,7 @@ func ensure_renderer() -> void:
 
 
 func begin_frame() -> void:
-	sync_from_settings()
+	# Enabled state is synced via the settings_changed signal, not re-read per frame (perf).
 	if not is_rendering():
 		return
 

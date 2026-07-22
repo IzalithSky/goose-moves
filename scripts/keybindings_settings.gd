@@ -113,7 +113,7 @@ const DEFAULT_BINDINGS := {
 	"player_left": [KEY_A, -1],
 	"player_right": [KEY_D, -1],
 	"player_jump": [KEY_SPACE, -1],
-	"player_flap": [KEY_F, -1],
+	"player_flap": [KEY_SPACE, -1],
 	"player_crouch": [KEY_CTRL, -1],
 	"player_special": [KEY_E, -1],
 	"player_walk": [KEY_SHIFT, -1],

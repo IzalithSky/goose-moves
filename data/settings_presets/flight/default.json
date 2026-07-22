@@ -25,6 +25,6 @@
 		"player_back": [83, -1],
 		"player_left": [65, -1],
 		"player_right": [68, -1],
-		"player_flap": [70, -1]
+		"player_flap": [32, -1]
 	}
 }

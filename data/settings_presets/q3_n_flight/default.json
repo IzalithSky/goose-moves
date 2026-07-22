@@ -56,7 +56,7 @@
 		"player_left": [65, -1],
 		"player_right": [68, -1],
 		"player_jump": [32, -1],
-		"player_flap": [70, -1],
+		"player_flap": [32, -1],
 		"player_crouch": [4194326, -1],
 		"player_special": [69, -1],
 		"player_walk": [4194325, -1]

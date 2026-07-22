@@ -85,7 +85,7 @@ When camera FBW is disabled, flight uses the controller keybinding actions:
 | `player_back` | S | Pitch up |
 | `player_left` | A | Roll left |
 | `player_right` | D | Roll right |
-| `player_flap` | F | Flap |
+| `player_flap` | Space | Flap |
 
 Pitch keys command a pitch rate around the current body-right axis:
 

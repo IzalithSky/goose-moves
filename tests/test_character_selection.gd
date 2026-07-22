@@ -112,15 +112,22 @@ func _controller_specific_keybindings() -> void:
 		"player_flap" in KeybindingsSettings.get_actions(Settings.CHARACTER_FLIGHT))
 	check("flight keybindings omit normal jump",
 		not "player_jump" in KeybindingsSettings.get_actions(Settings.CHARACTER_FLIGHT))
-	check("flight flap defaults to F",
-		_input_map_has_key("player_flap", KEY_F))
+	check("flight flap defaults to Space",
+		_input_map_has_key("player_flap", KEY_SPACE))
 
 	Settings.set_character_controller(Settings.CHARACTER_Q3_N_FLIGHT)
 	check("hybrid keybindings include normal jump",
 		"player_jump" in KeybindingsSettings.get_actions(Settings.CHARACTER_Q3_N_FLIGHT))
 	check("hybrid keybindings include flap",
 		"player_flap" in KeybindingsSettings.get_actions(Settings.CHARACTER_Q3_N_FLIGHT))
-	check("hybrid flap defaults to F",
+	check("hybrid jump defaults to Space",
+		_input_map_has_key("player_jump", KEY_SPACE))
+	check("hybrid flap defaults to Space",
+		_input_map_has_key("player_flap", KEY_SPACE))
+	KeybindingsSettings.set_binding("player_flap", 0, KEY_F)
+	check("hybrid jump stays Space after flap rebind",
+		_input_map_has_key("player_jump", KEY_SPACE))
+	check("hybrid flap can rebind independently",
 		_input_map_has_key("player_flap", KEY_F))
 
 	Settings.set_character_controller(Settings.CHARACTER_Q3)

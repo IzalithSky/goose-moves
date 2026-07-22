@@ -58,6 +58,7 @@ func _direct_transitions() -> void:
 	check("hybrid settings hide Q3 size X", not _has_hybrid_setting("character_size_x"))
 	check("hybrid settings expose no-contact flight gate", _has_hybrid_setting("flight_no_contact_threshold"))
 	check("hybrid settings expose flight first-person camera", _has_hybrid_setting("first_person"))
+	check("hybrid settings expose FBW direct-pitch angle", _has_hybrid_setting("camera_fly_by_wire_pitch_window"))
 	check("hybrid settings expose body bounce toggle", _has_hybrid_setting("body_bounce"))
 	check("hybrid settings expose body bounce impact speed", _has_hybrid_setting("body_bounce_min_normal_speed"))
 	check("hybrid settings expose body bounce knockdown time", _has_hybrid_setting("body_bounce_knockdown_duration"))
@@ -66,6 +67,7 @@ func _direct_transitions() -> void:
 	check_approx("hybrid body bounce defaults enabled", _hybrid_setting_default("body_bounce"), 1.0, 0.001)
 	check_approx("hybrid body bounce impact defaults to 14 m/s", _hybrid_setting_default("body_bounce_min_normal_speed"), 14.0, 0.001)
 	check_approx("hybrid body bounce knockdown defaults to 1.2s", _hybrid_setting_default("body_bounce_knockdown_duration"), 1.2, 0.001)
+	check_approx("hybrid FBW direct-pitch angle defaults to 15 deg", _hybrid_setting_default("camera_fly_by_wire_pitch_window"), 15.0, 0.001)
 	check_approx(
 		"hybrid Q3 movement defaults CPM-like",
 		_hybrid_setting_default("movement_mode"),

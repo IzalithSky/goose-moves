@@ -35,6 +35,7 @@ func _ready() -> void:
 	c.flap_cooldown_remaining = 0.0
 	c.camera_fly_by_wire_enabled = false
 	c.camera_fly_by_wire_target_distance = c.DEFAULT_CAMERA_FLY_BY_WIRE_TARGET_DISTANCE
+	c.camera_fly_by_wire_pitch_window_rad = deg_to_rad(c.DEFAULT_CAMERA_FLY_BY_WIRE_PITCH_WINDOW_DEGREES)
 	c.sideslip_compensation_enabled = c.DEFAULT_SIDESLIP_COMPENSATION_ENABLED >= 0.5
 	c.sideslip_compensation_max_yaw_rad = deg_to_rad(c.DEFAULT_SIDESLIP_COMPENSATION_MAX_YAW_DEGREES)
 	# High up with nothing to collide with: pure airborne flight.
@@ -63,6 +64,13 @@ func _has_flight_setting(key: String) -> bool:
 		if str(def["key"]) == key:
 			return true
 	return false
+
+
+func _flight_setting_default(key: String) -> float:
+	for def in Settings.get_controller_setting_defs(Settings.CHARACTER_FLIGHT):
+		if str(def["key"]) == key:
+			return float(def["default"])
+	return NAN
 
 
 func _heading_change_from_start_deg() -> float:
@@ -255,6 +263,13 @@ func _check_camera_rig_is_elevated() -> void:
 
 func _check_first_person_camera_toggle() -> void:
 	check("flight settings expose first-person camera", _has_flight_setting("first_person"))
+	check("flight settings expose FBW direct-pitch angle", _has_flight_setting("camera_fly_by_wire_pitch_window"))
+	check_approx(
+		"flight FBW direct-pitch angle defaults to 15 deg",
+		_flight_setting_default("camera_fly_by_wire_pitch_window"),
+		15.0,
+		0.001,
+	)
 	c.first_person_enabled = true
 	c._apply_camera_rotation()
 	check("flight first-person camera becomes active", c.get_view_camera() == c.first_person_camera)
@@ -285,8 +300,10 @@ func _check_fly_by_wire_uses_body_target_direction() -> void:
 	var saved_velocity: Vector3 = c.velocity
 	var saved_pitch_input: float = c.pitch_control_input
 	var saved_roll_input: float = c.roll_control_input
+	var saved_pitch_window: float = c.camera_fly_by_wire_pitch_window_rad
 	c.global_transform = Transform3D(Basis.IDENTITY, Vector3(0.0, 200.0, 0.0))
 	c.velocity = Vector3(0.0, 0.0, -18.0)
+	c.camera_fly_by_wire_pitch_window_rad = deg_to_rad(15.0)
 	c.pitch_control_input = 0.0
 	c.roll_control_input = 0.0
 	c._update_fly_by_wire_inputs_for_target(1.0, c.global_position + (c.global_basis.x * 100.0))
@@ -299,6 +316,28 @@ func _check_fly_by_wire_uses_body_target_direction() -> void:
 	check("camera FBW pulls up toward body-up target", c.pitch_control_input > 0.1)
 	check("camera FBW does not roll for body-up target", absf(c.roll_control_input) < 0.01)
 
+	var narrow_down_direction := Vector3(
+		sin(deg_to_rad(10.0)),
+		-0.5,
+		-cos(deg_to_rad(10.0))
+	).normalized()
+	c.pitch_control_input = 0.0
+	c.roll_control_input = 0.0
+	c._update_fly_by_wire_inputs_for_target(1.0, c.global_position + (narrow_down_direction * 100.0))
+	check("camera FBW pitches down toward target inside direct-pitch angle", c.pitch_control_input < -0.1)
+	check("camera FBW does not roll inside direct-pitch angle", absf(c.roll_control_input) < 0.01)
+
+	var wide_down_direction := Vector3(
+		sin(deg_to_rad(20.0)),
+		-0.5,
+		-cos(deg_to_rad(20.0))
+	).normalized()
+	c.pitch_control_input = 0.0
+	c.roll_control_input = 0.0
+	c._update_fly_by_wire_inputs_for_target(1.0, c.global_position + (wide_down_direction * 100.0))
+	check("camera FBW rolls toward target outside direct-pitch angle", c.roll_control_input > 0.1)
+	check("camera FBW still pulls outside direct-pitch angle", c.pitch_control_input > 0.01)
+
 	c.global_basis = (Basis(Vector3.RIGHT, deg_to_rad(35.0)) * Basis.IDENTITY).orthonormalized()
 	c.pitch_control_input = 0.0
 	c.roll_control_input = 0.0
@@ -309,6 +348,7 @@ func _check_fly_by_wire_uses_body_target_direction() -> void:
 	c.velocity = saved_velocity
 	c.pitch_control_input = saved_pitch_input
 	c.roll_control_input = saved_roll_input
+	c.camera_fly_by_wire_pitch_window_rad = saved_pitch_window
 	c._update_aero_angles()
 
 

@@ -42,6 +42,7 @@
 		"flap_cooldown": 0.5,
 		"camera_fly_by_wire": 1.0,
 		"camera_fly_by_wire_target_distance": 120.0,
+		"camera_fly_by_wire_pitch_window": 15.0,
 		"sideslip_compensation": 1.0,
 		"sideslip_compensation_max_yaw": 0.1,
 		"reference_area": 0.275,

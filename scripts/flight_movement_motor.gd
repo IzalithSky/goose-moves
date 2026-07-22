@@ -13,6 +13,7 @@ const DEFAULT_ROLL_RATE_DEGREES_PER_SECOND := 120.0
 const DEFAULT_FIRST_PERSON_ENABLED := 0.0
 const DEFAULT_CAMERA_FLY_BY_WIRE_ENABLED := 1.0
 const DEFAULT_CAMERA_FLY_BY_WIRE_TARGET_DISTANCE := 120.0
+const DEFAULT_CAMERA_FLY_BY_WIRE_PITCH_WINDOW_DEGREES := 15.0
 const DEFAULT_SIDESLIP_COMPENSATION_ENABLED := 1.0
 const DEFAULT_SIDESLIP_COMPENSATION_MAX_YAW_DEGREES := 0.1
 const FBW_DIRECTION_PITCH_RESPONSE_RATE := 0.6
@@ -216,6 +217,7 @@ var roll_rate_rad := deg_to_rad(DEFAULT_ROLL_RATE_DEGREES_PER_SECOND)
 var first_person_enabled := DEFAULT_FIRST_PERSON_ENABLED >= 0.5
 var camera_fly_by_wire_enabled := DEFAULT_CAMERA_FLY_BY_WIRE_ENABLED >= 0.5
 var camera_fly_by_wire_target_distance := DEFAULT_CAMERA_FLY_BY_WIRE_TARGET_DISTANCE
+var camera_fly_by_wire_pitch_window_rad := deg_to_rad(DEFAULT_CAMERA_FLY_BY_WIRE_PITCH_WINDOW_DEGREES)
 var sideslip_compensation_enabled := DEFAULT_SIDESLIP_COMPENSATION_ENABLED >= 0.5
 var sideslip_compensation_max_yaw_rad := deg_to_rad(DEFAULT_SIDESLIP_COMPENSATION_MAX_YAW_DEGREES)
 var mouse_sensitivity := Settings.DEFAULT_MOUSE_SENSITIVITY
@@ -425,7 +427,9 @@ func _update_fly_by_wire_inputs_for_target(delta: float, target_point: Vector3) 
 	var turn_angle := _get_local_turn_angle(local_direction)
 	var roll_target := _get_wings_level_roll_target(frame_basis)
 	var pitch_target := 0.0
-	if turn_angle > FBW_TURN_ANGLE_DEADBAND_RAD:
+	if _get_world_horizontal_turn_angle(direction, -frame_basis.z) <= camera_fly_by_wire_pitch_window_rad:
+		pitch_target = _get_nearest_pitch_target(local_direction)
+	elif turn_angle > FBW_TURN_ANGLE_DEADBAND_RAD:
 		roll_target = _get_lift_vector_roll_target(local_direction, turn_angle, frame_basis)
 		pitch_target = _get_lift_aligned_pitch_target(turn_angle, local_direction)
 	_move_fly_by_wire_inputs(delta, roll_target, pitch_target)
@@ -440,6 +444,17 @@ func _get_safe_world_direction(direction: Vector3, fallback: Vector3) -> Vector3
 func _get_local_turn_angle(local_direction: Vector3) -> float:
 	var forward_alignment := clampf(-local_direction.z, -1.0, 1.0)
 	return acos(forward_alignment)
+
+
+func _get_world_horizontal_turn_angle(direction: Vector3, forward: Vector3) -> float:
+	var flat_direction := Vector3(direction.x, 0.0, direction.z)
+	var flat_forward := Vector3(forward.x, 0.0, forward.z)
+	if (
+		flat_direction.length_squared() <= MIN_DIRECTION_VECTOR_LENGTH_SQUARED
+		or flat_forward.length_squared() <= MIN_DIRECTION_VECTOR_LENGTH_SQUARED
+	):
+		return 0.0
+	return flat_forward.normalized().angle_to(flat_direction.normalized())
 
 
 func _get_lift_vector_roll_target(local_direction: Vector3, turn_angle: float, frame_basis: Basis) -> float:
@@ -486,6 +501,18 @@ func _get_lift_alignment_factor(local_direction: Vector3) -> float:
 	if transverse_length <= MIN_DIRECTION_VECTOR_LENGTH_SQUARED:
 		return 1.0
 	return clampf(local_direction.y / transverse_length, 0.0, 1.0)
+
+
+func _get_nearest_pitch_target(local_direction: Vector3) -> float:
+	var pitch_angle := atan2(local_direction.y, -local_direction.z)
+	if absf(pitch_angle) <= FBW_TURN_MIN_PULL_ANGLE_RAD:
+		return 0.0
+	var desired_rate := clampf(
+		pitch_angle * FBW_TURN_PITCH_ANGLE_TO_RATE_GAIN,
+		-FBW_TURN_MAX_DESIRED_PITCH_RATE,
+		FBW_TURN_MAX_DESIRED_PITCH_RATE
+	)
+	return clampf(desired_rate / maxf(pitch_rate_rad, 0.001), -1.0, 1.0)
 
 
 func _get_turn_pull_pitch_target(turn_angle: float) -> float:
@@ -652,6 +679,7 @@ func _apply_controller_settings() -> void:
 	flap_cooldown_remaining = minf(flap_cooldown_remaining, flap_cooldown)
 	camera_fly_by_wire_enabled = Settings.get_controller_setting("camera_fly_by_wire", settings_controller_id) >= 0.5
 	camera_fly_by_wire_target_distance = Settings.get_controller_setting("camera_fly_by_wire_target_distance", settings_controller_id)
+	camera_fly_by_wire_pitch_window_rad = deg_to_rad(Settings.get_controller_setting("camera_fly_by_wire_pitch_window", settings_controller_id))
 	sideslip_compensation_enabled = Settings.get_controller_setting("sideslip_compensation", settings_controller_id) >= 0.5
 	sideslip_compensation_max_yaw_rad = deg_to_rad(Settings.get_controller_setting("sideslip_compensation_max_yaw", settings_controller_id))
 	reference_area = Settings.get_controller_setting("reference_area", settings_controller_id)

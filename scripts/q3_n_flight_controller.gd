@@ -378,6 +378,7 @@ func _enter_q3(snap_upright: bool) -> void:
 
 func _set_q3_visuals() -> void:
 	_cancel_camera_transition()
+	q3_motor.set_force_vector_debug_active(true)
 	flight_motor.set_view_active(false)
 	flight_hud.visible = false
 	_get_q3_view_camera().current = true
@@ -390,6 +391,7 @@ func _set_flight_visuals() -> void:
 	flight_hud.visible = true
 	camera.current = false
 	third_person_camera.current = false
+	q3_motor.set_force_vector_debug_active(false)
 	flight_motor.set_view_active(true)
 	character_collider_visual.visible = false
 

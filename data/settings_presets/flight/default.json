@@ -3,6 +3,7 @@
 	"name": "Default",
 	"controller": "flight",
 	"settings": {
+		"debug_force_vectors": 0.0,
 		"fov": 100.0,
 		"mouse_sensitivity": 0.003,
 		"camera_distance": 5.0,

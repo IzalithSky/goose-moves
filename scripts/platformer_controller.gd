@@ -1,6 +1,7 @@
 class_name PlatformerController
 extends CharacterBody3D
 
+const FORCE_VECTOR_DEBUG_ADAPTER := preload("res://scripts/force_vector_debug_adapter.gd")
 const SOURCE_FPS := 30.0
 const METERS_PER_SOURCE_UNIT := 0.0125
 const DEFAULT_MAX_TARGET_SPEED := 32.0
@@ -41,6 +42,7 @@ const WALL_KICK_WINDOW := 5.0 / SOURCE_FPS
 const VOLUME_COLLISION_MASK := 2
 const DEFAULT_RADIUS := GROUND_UPPER_WALL_PROBE_RADIUS_UNITS * METERS_PER_SOURCE_UNIT
 const DEFAULT_HEIGHT := STANDING_CLEARANCE_UNITS * METERS_PER_SOURCE_UNIT
+const DEBUG_COLOR_NET_ACCELERATION := Color(1.0, 0.55, 0.1)
 
 enum Action {
 	IDLE,
@@ -114,9 +116,11 @@ var mouse_sensitivity := 0.003
 var character_radius := DEFAULT_RADIUS
 var character_height := DEFAULT_HEIGHT
 var first_person_enabled := false
+var force_vector_debug
 
 
 func _ready() -> void:
+	force_vector_debug = FORCE_VECTOR_DEBUG_ADAPTER.new(self, Settings.CHARACTER_PLATFORMER)
 	collision_shape.shape = collision_shape.shape.duplicate()
 	body_mesh.mesh = body_mesh.mesh.duplicate()
 	_apply_controller_settings()
@@ -140,6 +144,8 @@ func _process(_delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	var debug_start_velocity := velocity
+	_begin_force_vector_debug_frame()
 	var native_frames := delta * SOURCE_FPS
 	jump_chain_timer = maxf(jump_chain_timer - delta, 0.0)
 	wall_kick_timer = maxf(wall_kick_timer - delta, 0.0)
@@ -176,6 +182,7 @@ func _physics_process(delta: float) -> void:
 	if not is_on_floor():
 		peak_height = maxf(peak_height, global_position.y)
 	_apply_camera_rotation()
+	_end_force_vector_debug_frame(debug_start_velocity, delta)
 
 
 func _update_grounded(native_frames: float, intended_magnitude: float, intended_yaw: float) -> void:
@@ -777,6 +784,29 @@ func get_view_camera() -> Camera3D:
 
 func on_settings_changed() -> void:
 	_apply_controller_settings()
+	if force_vector_debug != null:
+		force_vector_debug.sync_from_settings()
+
+
+func _begin_force_vector_debug_frame() -> void:
+	if force_vector_debug == null:
+		return
+
+	force_vector_debug.begin_frame()
+
+
+func _end_force_vector_debug_frame(previous_velocity: Vector3, delta: float) -> void:
+	if force_vector_debug == null:
+		return
+
+	force_vector_debug.push_velocity_change(
+		global_position + (Vector3.UP * maxf(character_height * 0.5, 0.5)),
+		previous_velocity,
+		velocity,
+		delta,
+		DEBUG_COLOR_NET_ACCELERATION,
+	)
+	force_vector_debug.end_frame()
 
 
 func _apply_controller_settings() -> void:

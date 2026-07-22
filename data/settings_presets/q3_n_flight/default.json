@@ -3,6 +3,7 @@
 	"name": "Default",
 	"controller": "q3_n_flight",
 	"settings": {
+		"debug_force_vectors": 0.0,
 		"flight_hold_threshold": 0.3,
 		"flight_no_contact_threshold": 0.3,
 		"flight_min_activation_speed": 12.0,

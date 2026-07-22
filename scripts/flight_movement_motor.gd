@@ -1,6 +1,7 @@
 class_name FlightMovementMotor
 extends RefCounted
 
+const FORCE_VECTOR_DEBUG_ADAPTER := preload("res://scripts/force_vector_debug_adapter.gd")
 const DEFAULT_CAMERA_DISTANCE := 5.0
 const DEFAULT_CAMERA_HEIGHT := 1.6
 const DEFAULT_GRAVITY_SCALE := 0.15
@@ -41,9 +42,14 @@ const MIN_AERODYNAMIC_SPEED_SQUARED := 0.0001
 const MIN_DIRECTION_VECTOR_LENGTH_SQUARED := 0.000001
 const COLLISION_OVERBOUNCE := 1.001
 const MAX_COLLISION_SLIDES := 4
+const DEBUG_COLOR_GRAVITY := Color(0.35, 0.55, 1.0)
+const DEBUG_COLOR_AERODYNAMIC := Color(0.2, 1.0, 0.9)
+const DEBUG_COLOR_EXTRA_DRAG := Color(1.0, 0.2, 0.2)
+const DEBUG_COLOR_NET_FORCE := Color.WHITE
 
 var body: CharacterBody3D
 var settings_controller_id := Settings.CHARACTER_FLIGHT
+var force_vector_debug
 
 var velocity: Vector3:
 	get:
@@ -235,6 +241,7 @@ func setup(
 ) -> void:
 	body = body_ref
 	settings_controller_id = controller_id
+	force_vector_debug = FORCE_VECTOR_DEBUG_ADAPTER.new(body, settings_controller_id)
 	collision_shape = refs.get("collision_shape") as CollisionShape3D
 	body_mesh = refs.get("body_mesh") as MeshInstance3D
 	camera_rig = refs.get("camera_rig") as Node3D
@@ -270,7 +277,12 @@ func physics_tick(delta: float) -> void:
 	flap_cooldown_remaining = maxf(flap_cooldown_remaining - delta, 0.0)
 	_collect_inputs(delta)
 	_update_aero_angles()
-	var total_force := _get_gravity_force() + _get_aerodynamic_force() + _get_extra_drag_force()
+	var gravity_force := _get_gravity_force()
+	var aerodynamic_force := _get_aerodynamic_force()
+	var extra_drag_force := _get_extra_drag_force()
+	var total_force := gravity_force + aerodynamic_force + extra_drag_force
+	_begin_force_vector_debug_frame()
+	_push_force_vector_debug_terms(gravity_force, aerodynamic_force, extra_drag_force, total_force)
 	velocity += (total_force / maxf(mass, 0.001)) * delta
 	_apply_direct_rotation(delta)
 	move_and_slide()
@@ -278,6 +290,7 @@ func physics_tick(delta: float) -> void:
 	if floor_normal != Vector3.ZERO:
 		_apply_q3_floor_friction(delta, floor_normal)
 	_apply_camera_rotation()
+	_end_force_vector_debug_frame()
 
 
 func handle_input(event: InputEvent) -> void:
@@ -318,11 +331,15 @@ func get_view_camera() -> Camera3D:
 
 func on_settings_changed() -> void:
 	_apply_controller_settings()
+	if force_vector_debug != null:
+		force_vector_debug.sync_from_settings()
 
 
 func set_view_active(active: bool) -> void:
 	view_active = active
 	_apply_visual_state()
+	if force_vector_debug != null:
+		force_vector_debug.set_active(active)
 
 
 func _collect_inputs(delta: float) -> void:
@@ -685,6 +702,49 @@ func _apply_controller_settings() -> void:
 	reference_area = Settings.get_controller_setting("reference_area", settings_controller_id)
 	extra_linear_drag_quadratic_coefficient = Settings.get_controller_setting("extra_linear_drag_quadratic_coefficient", settings_controller_id)
 	_apply_visual_state()
+
+
+func clear_force_vector_debug() -> void:
+	if force_vector_debug == null:
+		return
+
+	force_vector_debug.clear_frame()
+
+
+func _begin_force_vector_debug_frame() -> void:
+	if force_vector_debug == null:
+		return
+
+	force_vector_debug.begin_frame()
+
+
+func _push_force_vector_debug_terms(
+	gravity_force: Vector3,
+	aerodynamic_force: Vector3,
+	extra_drag_force: Vector3,
+	total_force: Vector3
+) -> void:
+	if force_vector_debug == null:
+		return
+
+	var origin := _get_force_vector_debug_origin()
+	force_vector_debug.push_vector(origin, gravity_force, DEBUG_COLOR_GRAVITY)
+	force_vector_debug.push_vector(origin, aerodynamic_force, DEBUG_COLOR_AERODYNAMIC)
+	force_vector_debug.push_vector(origin, extra_drag_force, DEBUG_COLOR_EXTRA_DRAG)
+	force_vector_debug.push_vector(origin, total_force, DEBUG_COLOR_NET_FORCE)
+
+
+func _end_force_vector_debug_frame() -> void:
+	if force_vector_debug == null:
+		return
+
+	force_vector_debug.end_frame()
+
+
+func _get_force_vector_debug_origin() -> Vector3:
+	if collision_shape != null:
+		return collision_shape.global_position
+	return global_position
 
 
 func _get_active_camera() -> Camera3D:

@@ -2,6 +2,7 @@ class_name Q3MovementMotor
 extends RefCounted
 
 const Q3_MOVEMENT_HUD := preload("res://scripts/q3_movement_hud.gd")
+const FORCE_VECTOR_DEBUG_ADAPTER := preload("res://scripts/force_vector_debug_adapter.gd")
 const Q3_UNITS_PER_FOOT := 8.0
 const METERS_PER_FOOT := 0.3048
 const Q3_METERS_PER_UNIT := METERS_PER_FOOT / Q3_UNITS_PER_FOOT
@@ -64,6 +65,7 @@ const WARSOW_WALL_JUMP_MAX_NORMAL_Y := 0.3
 const WARSOW_WALL_JUMP_PROBE_DIRECTIONS := 20
 const WARSOW_DASH_SPEED := 450.0 * Q3_METERS_PER_UNIT
 const WARSOW_DASH_UP_SPEED_THRESHOLD := 8.0 * Q3_METERS_PER_UNIT
+const DEBUG_COLOR_NET_ACCELERATION := Color(1.0, 0.55, 0.1)
 
 enum MovementMode {
 	VQ3,
@@ -72,6 +74,7 @@ enum MovementMode {
 
 var body: CharacterBody3D
 var settings_controller_id := Settings.CHARACTER_Q3
+var force_vector_debug
 
 var velocity: Vector3:
 	get:
@@ -252,6 +255,7 @@ func setup(
 ) -> void:
 	body = body_ref
 	settings_controller_id = controller_id
+	force_vector_debug = FORCE_VECTOR_DEBUG_ADAPTER.new(body, settings_controller_id)
 	head = refs.get("head") as Node3D
 	camera = refs.get("camera") as Camera3D
 	third_person_spring_arm = refs.get("third_person_spring_arm") as SpringArm3D
@@ -293,6 +297,8 @@ func process_tick(_delta: float) -> void:
 
 
 func physics_tick(delta: float) -> void:
+	var debug_start_velocity := velocity
+	_begin_force_vector_debug_frame()
 	_update_crouch_state()
 	_update_water_level()
 	wall_jump_cooldown_remaining = maxf(wall_jump_cooldown_remaining - delta, 0.0)
@@ -323,12 +329,15 @@ func physics_tick(delta: float) -> void:
 	_update_crouch_slide(delta, grounded)
 	if water_jump_time_remaining > 0.0:
 		_water_jump_move(delta)
+		_end_force_vector_debug_frame(debug_start_velocity, delta)
 		return
 	if water_level > 1:
 		if _try_water_jump():
 			_water_jump_move(delta)
+			_end_force_vector_debug_frame(debug_start_velocity, delta)
 			return
 		_water_move(movement_input, delta)
+		_end_force_vector_debug_frame(debug_start_velocity, delta)
 		return
 	if grounded and _jump_requested() and not Input.is_action_pressed("player_crouch"):
 		_apply_jump_velocity(floor_normal)
@@ -373,6 +382,7 @@ func physics_tick(delta: float) -> void:
 		var default_velocity_y := move_velocity.y if grounded else airborne_end_velocity_y
 		velocity.y = _get_ramp_collision_velocity_y(move_velocity, default_velocity_y)
 	_update_floor_surface()
+	_end_force_vector_debug_frame(debug_start_velocity, delta)
 
 
 func _get_movement_input() -> Vector2:
@@ -986,6 +996,47 @@ func handle_unhandled_input(event: InputEvent) -> void:
 
 func on_settings_changed() -> void:
 	_apply_controller_settings()
+	if force_vector_debug != null:
+		force_vector_debug.sync_from_settings()
+
+
+func _begin_force_vector_debug_frame() -> void:
+	if force_vector_debug == null:
+		return
+
+	force_vector_debug.begin_frame()
+
+
+func set_force_vector_debug_active(active: bool) -> void:
+	if force_vector_debug == null:
+		return
+
+	force_vector_debug.set_active(active)
+
+
+func clear_force_vector_debug() -> void:
+	if force_vector_debug == null:
+		return
+
+	force_vector_debug.clear_frame()
+
+
+func _end_force_vector_debug_frame(previous_velocity: Vector3, delta: float) -> void:
+	if force_vector_debug == null:
+		return
+
+	force_vector_debug.push_velocity_change(
+		_get_force_vector_debug_origin(),
+		previous_velocity,
+		velocity,
+		delta,
+		DEBUG_COLOR_NET_ACCELERATION,
+	)
+	force_vector_debug.end_frame()
+
+
+func _get_force_vector_debug_origin() -> Vector3:
+	return global_position + (Vector3.UP * maxf(character_size.y * 0.5, 0.5))
 
 
 func _apply_controller_settings() -> void:

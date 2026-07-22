@@ -3,6 +3,7 @@
 	"name": "Default",
 	"controller": "q3",
 	"settings": {
+		"debug_force_vectors": 0.0,
 		"fov": 100.0,
 		"mouse_sensitivity": 0.003,
 		"movement_mode": 0.0,

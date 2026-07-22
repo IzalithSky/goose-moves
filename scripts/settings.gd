@@ -41,7 +41,9 @@ const CONTROLLER_LABELS := {
 	CHARACTER_FLIGHT: "Flight",
 	CHARACTER_Q3_N_FLIGHT: "Q3 + Flight",
 }
+const DEBUG_FORCE_VECTOR_SETTING_DEF := {"key": "debug_force_vectors", "label": "Debug force vectors", "default": 0.0, "min": 0.0, "max": 1.0, "step": 1.0, "control": "toggle"}
 const Q3_SETTING_DEFS: Array[Dictionary] = [
+	DEBUG_FORCE_VECTOR_SETTING_DEF,
 	{"key": "fov", "label": "Field of view", "default": DEFAULT_FOV, "min": MIN_FOV, "max": MAX_FOV, "step": 1.0, "format": "%.0f", "suffix": "°", "control": "slider"},
 	{"key": "mouse_sensitivity", "label": "Mouse sensitivity", "default": DEFAULT_MOUSE_SENSITIVITY, "min": 0.001, "max": 0.02, "step": 0.001, "format": "%.3f", "control": "slider"},
 	{"key": "movement_mode", "label": "Movement mode", "default": Q3CC.MovementMode.VQ3, "min": Q3CC.MovementMode.VQ3, "max": Q3CC.MovementMode.WARSOW_CLASSIC, "step": 1.0, "control": "option", "options": [
@@ -79,6 +81,7 @@ const SPECTATOR_SETTING_DEFS: Array[Dictionary] = [
 	{"key": "move_speed", "label": "Move speed", "default": 12.0, "min": 0.0, "max": 50.0, "step": 0.1, "format": "%.2f"},
 ]
 const PLATFORMER_SETTING_DEFS: Array[Dictionary] = [
+	DEBUG_FORCE_VECTOR_SETTING_DEF,
 	{"key": "fov", "label": "Field of view", "default": DEFAULT_FOV, "min": MIN_FOV, "max": MAX_FOV, "step": 1.0, "format": "%.0f", "suffix": "°", "control": "slider"},
 	{"key": "mouse_sensitivity", "label": "Mouse sensitivity", "default": DEFAULT_MOUSE_SENSITIVITY, "min": 0.001, "max": 0.02, "step": 0.001, "format": "%.3f", "control": "slider"},
 	{"key": "camera_distance", "label": "Camera distance", "default": 6.0, "min": 1.0, "max": 15.0, "step": 0.1, "format": "%.1f", "suffix": " m"},
@@ -98,6 +101,7 @@ const PLATFORMER_SETTING_DEFS: Array[Dictionary] = [
 	{"key": "buoyancy", "label": "Deep-water buoyancy", "default": PLATFORMER_CC.DEFAULT_BUOYANCY, "min": -20.0, "max": 20.0, "step": 0.25, "format": "%.2f", "suffix": " u/f"},
 ]
 const FLIGHT_SETTING_DEFS: Array[Dictionary] = [
+	DEBUG_FORCE_VECTOR_SETTING_DEF,
 	{"key": "fov", "label": "Field of view", "default": DEFAULT_FOV, "min": MIN_FOV, "max": MAX_FOV, "step": 1.0, "format": "%.0f", "suffix": "°", "control": "slider"},
 	{"key": "mouse_sensitivity", "label": "Mouse sensitivity", "default": DEFAULT_MOUSE_SENSITIVITY, "min": 0.001, "max": 0.02, "step": 0.001, "format": "%.3f", "control": "slider"},
 	{"key": "camera_distance", "label": "Camera distance", "default": FLIGHT_CC.DEFAULT_CAMERA_DISTANCE, "min": 1.0, "max": 15.0, "step": 0.1, "format": "%.1f", "suffix": " m"},

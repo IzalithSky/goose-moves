@@ -107,6 +107,22 @@ func _controller_specific_keybindings() -> void:
 	check("spectator jump binding applied to InputMap",
 		_input_map_has_key("player_jump", KEY_U))
 
+	Settings.set_character_controller(Settings.CHARACTER_FLIGHT)
+	check("flight keybindings include flap",
+		"player_flap" in KeybindingsSettings.get_actions(Settings.CHARACTER_FLIGHT))
+	check("flight keybindings omit normal jump",
+		not "player_jump" in KeybindingsSettings.get_actions(Settings.CHARACTER_FLIGHT))
+	check("flight flap defaults to F",
+		_input_map_has_key("player_flap", KEY_F))
+
+	Settings.set_character_controller(Settings.CHARACTER_Q3_N_FLIGHT)
+	check("hybrid keybindings include normal jump",
+		"player_jump" in KeybindingsSettings.get_actions(Settings.CHARACTER_Q3_N_FLIGHT))
+	check("hybrid keybindings include flap",
+		"player_flap" in KeybindingsSettings.get_actions(Settings.CHARACTER_Q3_N_FLIGHT))
+	check("hybrid flap defaults to F",
+		_input_map_has_key("player_flap", KEY_F))
+
 	Settings.set_character_controller(Settings.CHARACTER_Q3)
 	check("Q3 keybindings include slow walk",
 		"player_walk" in KeybindingsSettings.get_actions(Settings.CHARACTER_Q3))
@@ -125,6 +141,8 @@ func _controller_specific_keybindings() -> void:
 		(config.get_value("bindings_q3", "player_jump", []) as Array)[0] == KEY_J)
 	check("spectator binding persisted in spectator section",
 		(config.get_value("bindings_spectator", "player_jump", []) as Array)[0] == KEY_U)
+	check("hybrid flap binding persisted in hybrid section",
+		(config.get_value("bindings_q3_n_flight", "player_flap", []) as Array)[0] == KEY_F)
 
 
 func _settings_menu_categories() -> void:
@@ -358,6 +376,8 @@ func _settings_presets() -> void:
 	check("built-in Q3 + Flight default settings preset loads", not hybrid_default_payload.is_empty())
 	check("built-in Q3 + Flight default preset matches setting schema defaults",
 		_preset_matches_defaults(hybrid_default_payload))
+	check("built-in Q3 + Flight default preset includes flap binding",
+		(hybrid_default_payload.get("keybindings", {}) as Dictionary).has("player_flap"))
 	var hybrid_menu := SETTINGS_MENU_SCENE.instantiate()
 	add_child(hybrid_menu)
 	hybrid_menu.sync_from_settings()

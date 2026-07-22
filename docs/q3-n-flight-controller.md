@@ -35,13 +35,14 @@ Default flight-side behavior:
 - Camera: third-person.
 - Camera fly-by-wire: enabled.
 - FBW direct-pitch window: `15°`.
-- Flap / jump key: `Space`.
+- Jump key: `Space`.
+- Flap / flight key: `F`.
 
 Default hybrid gates:
 
 | Setting | Default | Meaning |
 |---|---:|---|
-| `flight_hold_threshold` | `0.3 s` | Jump/flap must be held this long before flight can activate. |
+| `flight_hold_threshold` | `0.3 s` | Flap must be held this long before flight can activate. |
 | `flight_no_contact_threshold` | `0.3 s` | The body must have touched no surface for this long. |
 | `flight_min_activation_speed` | `12.0 m/s` | Velocity length must be at least this high. |
 
@@ -73,7 +74,7 @@ sliding, swimming, or otherwise using the Q3 movement path.
 
 Each frame:
 
-1. Track how long jump/flap has been held.
+1. Track how long flap has been held.
 2. Run Q3 movement physics.
 3. Check high-speed impact bounce.
 4. Update the no-surface-contact timer.
@@ -98,7 +99,7 @@ In flight mode, physics is delegated to `FlightMovementMotor`.
 
 Each frame:
 
-1. Track held jump/flap input.
+1. Exit to Q3 mode when crouch is held.
 2. Run flight process and camera logic.
 3. Run flight physics and aerodynamics.
 4. Check high-speed impact bounce.
@@ -244,13 +245,14 @@ The hybrid controller shares actions between Q3 and flight:
 | `player_back` | S | Move back | Pitch up |
 | `player_left` | A | Move left | Roll left |
 | `player_right` | D | Move right | Roll right |
-| `player_jump` | Space | Jump / hold to enter flight | Flap |
-| `player_crouch` | Ctrl | Crouch | unused |
+| `player_jump` | Space | Jump | unused |
+| `player_flap` | F | Hold to enter flight | Flap |
+| `player_crouch` | Ctrl | Crouch | Exit flight |
 | `player_special` | E | Special / Wall Jump | unused |
 | `player_walk` | Shift | Slow Walk | unused |
 
 The action labels in the settings menu use hybrid names such as
-`Jump / Hold Flight / Flap` and `Move Forward / Pitch Down`.
+`Flap / Hold Flight` and `Move Forward / Pitch Down`.
 
 ## Settings and presets
 
@@ -277,7 +279,7 @@ Hybrid-specific settings:
 
 | Key | Purpose |
 |---|---|
-| `flight_hold_threshold` | Held jump/flap time required before flight. |
+| `flight_hold_threshold` | Held flap time required before flight. |
 | `flight_no_contact_threshold` | Airborne/no-surface time required before flight. |
 | `flight_min_activation_speed` | Minimum speed required before flight. |
 | `body_bounce` | Enables/disables body-bounce knockdown. |

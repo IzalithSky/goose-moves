@@ -116,7 +116,7 @@ const FLIGHT_SETTING_DEFS: Array[Dictionary] = [
 	{"key": "extra_linear_drag_quadratic_coefficient", "label": "Extra quadratic drag", "default": FLIGHT_CC.DEFAULT_EXTRA_LINEAR_DRAG_QUADRATIC_COEFFICIENT, "min": 0.0, "max": 1.0, "step": 0.001, "format": "%.3f"},
 ]
 var Q3_N_FLIGHT_SETTING_DEFS := [
-	{"key": "flight_hold_threshold", "label": "Hold jump for flight", "default": Q3_N_FLIGHT_CC.DEFAULT_FLIGHT_HOLD_THRESHOLD, "min": 0.0, "max": 2.0, "step": 0.05, "format": "%.2f", "suffix": " s"},
+	{"key": "flight_hold_threshold", "label": "Hold flap for flight", "default": Q3_N_FLIGHT_CC.DEFAULT_FLIGHT_HOLD_THRESHOLD, "min": 0.0, "max": 2.0, "step": 0.05, "format": "%.2f", "suffix": " s"},
 	{"key": "flight_no_contact_threshold", "label": "Airborne time for flight", "default": Q3_N_FLIGHT_CC.DEFAULT_FLIGHT_NO_CONTACT_THRESHOLD, "min": 0.0, "max": 2.0, "step": 0.05, "format": "%.2f", "suffix": " s"},
 	{"key": "flight_min_activation_speed", "label": "Minimum flight speed", "default": Q3_N_FLIGHT_CC.DEFAULT_FLIGHT_MIN_ACTIVATION_SPEED, "min": 0.0, "max": 80.0, "step": 0.1, "format": "%.1f", "suffix": " m/s"},
 	{"key": "body_bounce", "label": "Body bounce knockdown", "default": Q3_N_FLIGHT_CC.DEFAULT_BODY_BOUNCE_ENABLED, "min": 0.0, "max": 1.0, "step": 1.0, "control": "toggle"},

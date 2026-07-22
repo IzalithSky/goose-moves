@@ -93,6 +93,9 @@ func _process(delta: float) -> void:
 func _physics_process(delta: float) -> void:
 	_update_knockdown_timer(delta)
 	if mode == Mode.FLIGHT:
+		if Input.is_action_pressed("player_crouch"):
+			_enter_q3(true)
+			return
 		var flight_impact_velocity := velocity
 		flight_motor.physics_tick(delta)
 		var flight_bounce_impact := _get_body_bounce_impact(flight_impact_velocity)
@@ -194,7 +197,7 @@ func _update_flap_hold(delta: float) -> void:
 	if _is_knocked_down():
 		flap_hold_time = 0.0
 		return
-	if Input.is_action_pressed("player_jump"):
+	if Input.is_action_pressed("player_flap"):
 		flap_hold_time += delta
 	else:
 		flap_hold_time = 0.0

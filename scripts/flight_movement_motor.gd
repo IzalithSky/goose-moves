@@ -331,7 +331,7 @@ func _collect_inputs(delta: float) -> void:
 	else:
 		pitch_control_input = Input.get_action_strength("player_back") - Input.get_action_strength("player_forward")
 		roll_control_input = Input.get_action_strength("player_right") - Input.get_action_strength("player_left")
-	if Input.is_action_just_pressed("player_jump"):
+	if Input.is_action_just_pressed("player_flap"):
 		_try_flap_impulse()
 
 

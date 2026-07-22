@@ -16,6 +16,7 @@ func _ready() -> void:
 	c.position = Vector3(0, 3, 0)
 	add_child(c)
 	Input.action_release("player_jump")
+	Input.action_release("player_flap")
 
 
 func _goto(next: String) -> void:
@@ -168,6 +169,7 @@ func _direct_transitions() -> void:
 	check("flight -> Q3 camera blend finishes", not c.camera_transition_active)
 	check("flight -> Q3 camera hands off to Q3 camera", q3_return_camera.current)
 	Input.action_release("player_jump")
+	Input.action_release("player_flap")
 	Input.action_release("player_crouch")
 	c.global_position = Vector3(4, 0.2, 4)
 	c.velocity = Vector3.ZERO
@@ -184,7 +186,7 @@ func _direct_transitions() -> void:
 func _ground_gate_settle() -> void:
 	if not c.is_on_floor():
 		return
-	Input.action_press("player_jump")
+	Input.action_press("player_flap")
 	Input.action_press("player_crouch")
 	_goto("ground_gate_blocks_flight")
 
@@ -194,7 +196,7 @@ func _ground_gate_blocks_flight() -> void:
 		return
 	check("held flap cannot activate flight while grounded", c.mode == c.Mode.Q3)
 	check_approx("grounded contact keeps no-contact timer reset", c.no_surface_contact_time, 0.0, 0.001)
-	Input.action_release("player_jump")
+	Input.action_release("player_flap")
 	Input.action_release("player_crouch")
 	c.global_position = Vector3(4, 0.2, 4)
 	c.velocity = Vector3.ZERO
@@ -215,6 +217,7 @@ func _low_hold_settle() -> void:
 	checked_no_contact_gate = false
 	last_q3_position = c.global_position
 	Input.action_press("player_jump")
+	Input.action_press("player_flap")
 	_goto("low_hold_to_flight")
 
 
@@ -230,30 +233,42 @@ func _low_hold_to_flight() -> void:
 		last_q3_position = c.global_position
 		return
 	check("low transition observed no-contact gate", checked_no_contact_gate)
-	check("low held jump enters flight", c.mode == c.Mode.FLIGHT)
+	check("low jump plus held flap enters flight", c.mode == c.Mode.FLIGHT)
 	check("low Q3 -> flight does not teleport", c.global_position.distance_to(last_q3_position) < 0.35)
 	Input.action_release("player_jump")
+	Input.action_release("player_flap")
 	c._enter_q3(true)
 	c.global_position = Vector3(0, 8, 0)
 	c.velocity = Vector3.ZERO
 	c.flight_hold_threshold = 0.05
 	c.flight_no_contact_threshold = 0.05
 	c.flight_min_activation_speed = 12.0
-	Input.action_press("player_jump")
+	Input.action_press("player_flap")
 	_goto("hold_to_flight")
 
 
 func _hold_to_flight() -> void:
 	if phase_frame == 4:
-		check("held jump waits for minimum flight speed", c.mode == c.Mode.Q3)
+		check("held flap waits for minimum flight speed", c.mode == c.Mode.Q3)
 		c.velocity = Vector3(0.0, 0.0, -12.0)
 	if phase_frame < 2:
-		check("short jump hold stays in Q3", c.mode == c.Mode.Q3)
+		check("short flap hold stays in Q3", c.mode == c.Mode.Q3)
 		return
 	if c.mode != c.Mode.FLIGHT:
 		return
-	check("held jump enters flight after threshold", c.mode == c.Mode.FLIGHT)
-	Input.action_release("player_jump")
+	check("held flap enters flight after threshold", c.mode == c.Mode.FLIGHT)
+	Input.action_release("player_flap")
+	Input.action_press("player_crouch")
+	_goto("flight_crouch_returns_q3")
+
+
+func _flight_crouch_returns_q3() -> void:
+	if phase_frame < 3 and c.mode == c.Mode.FLIGHT:
+		return
+	check("crouch exits flight mode", c.mode == c.Mode.Q3)
+	check_approx("crouch exit snaps pitch upright", c.rotation.x, 0.0, 0.001)
+	check_approx("crouch exit snaps roll upright", c.rotation.z, 0.0, 0.001)
+	Input.action_release("player_crouch")
 	c.global_position = Vector3(0, 3, 0)
 	c.velocity = Vector3(2, 0, -12)
 	c.global_basis = Basis.IDENTITY
@@ -268,7 +283,7 @@ func _flight_contact_returns_q3() -> void:
 	check_approx("contact return snaps pitch upright", c.rotation.x, 0.0, 0.001)
 	check_approx("contact return snaps roll upright", c.rotation.z, 0.0, 0.001)
 	check("contact return keeps tangential momentum", absf(c.velocity.x) > 0.5)
-	Input.action_release("player_jump")
+	Input.action_release("player_flap")
 	c.body_bounce_enabled = true
 	c.body_bounce_min_normal_speed = 5.0
 	c.body_bounce_knockdown_duration = 0.25

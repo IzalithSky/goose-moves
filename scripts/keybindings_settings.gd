@@ -49,7 +49,7 @@ const FLIGHT_ACTIONS: Array[String] = [
 	"player_back",
 	"player_left",
 	"player_right",
-	"player_jump",
+	"player_flap",
 ]
 const Q3_N_FLIGHT_ACTIONS: Array[String] = [
 	"player_forward",
@@ -57,6 +57,7 @@ const Q3_N_FLIGHT_ACTIONS: Array[String] = [
 	"player_left",
 	"player_right",
 	"player_jump",
+	"player_flap",
 	"player_crouch",
 	"player_special",
 	"player_walk",
@@ -93,15 +94,16 @@ const FLIGHT_ACTION_LABELS := {
 	"player_back": "Pitch Up",
 	"player_left": "Roll Left",
 	"player_right": "Roll Right",
-	"player_jump": "Flap / Jump",
+	"player_flap": "Flap",
 }
 const Q3_N_FLIGHT_ACTION_LABELS := {
 	"player_forward": "Move Forward / Pitch Down",
 	"player_back": "Move Back / Pitch Up",
 	"player_left": "Move Left / Roll Left",
 	"player_right": "Move Right / Roll Right",
-	"player_jump": "Jump / Hold Flight / Flap",
-	"player_crouch": "Crouch",
+	"player_jump": "Jump",
+	"player_flap": "Flap / Hold Flight",
+	"player_crouch": "Crouch / Exit Flight",
 	"player_special": "Special / Wall Jump",
 	"player_walk": "Slow Walk",
 }
@@ -111,6 +113,7 @@ const DEFAULT_BINDINGS := {
 	"player_left": [KEY_A, -1],
 	"player_right": [KEY_D, -1],
 	"player_jump": [KEY_SPACE, -1],
+	"player_flap": [KEY_F, -1],
 	"player_crouch": [KEY_CTRL, -1],
 	"player_special": [KEY_E, -1],
 	"player_walk": [KEY_SHIFT, -1],

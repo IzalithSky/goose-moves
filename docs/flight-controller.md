@@ -11,7 +11,7 @@ time.
 `scripts/flight_controller.gd` runs the controller in this order:
 
 1. Decrement flap cooldown.
-2. Collect pitch/roll input from camera FBW or manual fallback (`player_jump`
+2. Collect pitch/roll input from camera FBW or manual fallback (`player_flap`
    can apply a flap impulse).
 3. Measure current angle of attack and sideslip from local velocity.
 4. Apply gravity, aerodynamic lift/drag, and extra drag to velocity.
@@ -85,7 +85,7 @@ When camera FBW is disabled, flight uses the controller keybinding actions:
 | `player_back` | S | Pitch up |
 | `player_left` | A | Roll left |
 | `player_right` | D | Roll right |
-| `player_jump` | Space | Flap |
+| `player_flap` | F | Flap |
 
 Pitch keys command a pitch rate around the current body-right axis:
 
@@ -215,7 +215,7 @@ retarding component and double-count drag already represented by the drag table.
 
 ## Flap impulse
 
-`player_jump` applies an instantaneous velocity impulse, similar to Q3's normal
+`player_flap` applies an instantaneous velocity impulse, similar to Q3's normal
 jump model, instead of constant thrust over a fixed time.
 
 The impulse direction blends local forward and local up:

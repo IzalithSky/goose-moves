@@ -29,6 +29,10 @@ var crouch_slide_landing_speed := 0.0
 
 
 func _ready() -> void:
+	KeybindingsSettings.set_binding("player_jump", 1, {
+		"type": "mouse",
+		"button_index": MOUSE_BUTTON_WHEEL_DOWN,
+	})
 	add_static_box(Vector3(40, 1, 40), Transform3D(Basis.IDENTITY, Vector3(0, -0.5, 0)))
 	add_static_box(Vector3(30, 1, 30), Transform3D(Basis.IDENTITY, Vector3(40, -0.5, 0)), true)
 	add_static_box(Vector3(1, 4, 30), Transform3D(Basis.IDENTITY, Vector3(46, 2, 0)))
@@ -275,11 +279,33 @@ func _autojump() -> void:
 		autojump_landed = true
 		return
 	Input.action_release("player_jump")
-	c.auto_jump = false
 	check("held autojump fires again immediately after landing", not c.is_on_floor())
 	check_approx("autojump landing frame skips ground friction and starts a jump",
 		c.velocity.y, c.jump_velocity - c.gravity * DT, 1e-4)
 	check_approx("autojump preserves landing speed without a friction tick", c.velocity.x, 8.0, 1e-4)
+	c.global_position = Vector3(0, 0.05, 0)
+	c.velocity = Vector3.ZERO
+	_goto("scroll_jump_settle")
+
+
+func _scroll_jump_settle() -> void:
+	if not c.is_on_floor() and phase_frame < 30:
+		return
+	check("settled before scroll jump", c.is_on_floor())
+	var event := InputEventMouseButton.new()
+	event.button_index = MOUSE_BUTTON_WHEEL_DOWN
+	event.pressed = true
+	get_viewport().push_input(event)
+	_goto("scroll_jump")
+
+
+func _scroll_jump() -> void:
+	if phase_frame == 1:
+		return
+	check("mouse wheel jump works with autojump enabled", not c.is_on_floor())
+	check_approx("mouse wheel jump applies jump velocity",
+		c.velocity.y, c.jump_velocity - c.gravity * DT * 2.0, 1e-4)
+	c.auto_jump = false
 	c.global_position = Vector3(0, 2, 0)
 	c.velocity = Vector3(8, -1, 0)
 	c.crouch_slide_enabled = true

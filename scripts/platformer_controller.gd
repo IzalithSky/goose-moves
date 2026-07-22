@@ -193,7 +193,7 @@ func _update_grounded(native_frames: float, intended_magnitude: float, intended_
 		return
 
 	_update_quicksand(native_frames)
-	if Input.is_action_just_pressed("player_jump"):
+	if KeybindingsSettings.is_action_just_pressed(&"player_jump"):
 		_start_ground_jump(intended_magnitude, intended_yaw)
 		return
 
@@ -252,11 +252,11 @@ func _update_airborne(native_frames: float, intended_magnitude: float, intended_
 		action = Action.FALL
 		peak_height = global_position.y
 
-	if Input.is_action_just_pressed("player_jump") and wall_kick_timer > 0.0:
+	if KeybindingsSettings.is_action_just_pressed(&"player_jump") and wall_kick_timer > 0.0:
 		_start_wall_kick()
-	elif Input.is_action_just_pressed("player_special") and action != Action.DIVE:
+	elif KeybindingsSettings.is_action_just_pressed(&"player_special") and action != Action.DIVE:
 		_start_dive()
-	elif Input.is_action_just_pressed("player_crouch") and action != Action.GROUND_POUND:
+	elif KeybindingsSettings.is_action_just_pressed(&"player_crouch") and action != Action.GROUND_POUND:
 		_start_ground_pound()
 
 	if action == Action.GROUND_POUND:
@@ -287,7 +287,7 @@ func _update_swimming(
 	intended_yaw: float
 ) -> void:
 	action = Action.SWIMMING
-	if Input.is_action_just_pressed("player_jump"):
+	if KeybindingsSettings.is_action_just_pressed(&"player_jump"):
 		forward_speed = minf(forward_speed + 6.0, swim_speed)
 	elif intended_magnitude <= 0.0:
 		forward_speed = _approach_value(forward_speed, 0.0, native_frames)

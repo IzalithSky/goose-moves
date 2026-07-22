@@ -435,9 +435,11 @@ func _get_vertical_input() -> float:
 func _jump_requested() -> bool:
 	if not control_enabled:
 		return false
+	if KeybindingsSettings.is_action_just_pressed(&"player_jump"):
+		return true
 	if auto_jump:
 		return Input.is_action_pressed("player_jump")
-	return Input.is_action_just_pressed("player_jump")
+	return false
 
 
 func _apply_jump_velocity(ground_normal: Vector3) -> void:
@@ -467,7 +469,7 @@ func _try_wall_jump(grounded: bool) -> bool:
 		or grounded
 		or water_level > 1
 		or wall_jump_cooldown_remaining > 0.0
-		or not Input.is_action_just_pressed("player_special")
+		or not KeybindingsSettings.is_action_just_pressed(&"player_special")
 		or not _wall_jump_height_allowed()
 	):
 		return false

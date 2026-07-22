@@ -5,6 +5,13 @@ signal actions_changed
 
 const SAVE_PATH := "user://keybindings.cfg"
 const MAX_BINDINGS := 2
+const MOUSE_BUTTON_PULSE_FRAMES := 1
+const PULSE_MOUSE_BUTTONS := {
+	MOUSE_BUTTON_WHEEL_UP: true,
+	MOUSE_BUTTON_WHEEL_DOWN: true,
+	MOUSE_BUTTON_WHEEL_LEFT: true,
+	MOUSE_BUTTON_WHEEL_RIGHT: true,
+}
 const CHARACTER_Q3 := "q3"
 const CHARACTER_SPECTATOR := "spectator"
 const CHARACTER_PLATFORMER := "platformer"
@@ -121,6 +128,7 @@ const DEFAULT_BINDINGS := {
 
 var bindings_by_controller: Dictionary = {}
 var active_controller_id := CHARACTER_Q3
+var mouse_button_pulse_frames: Dictionary = {}
 
 
 func _ready() -> void:
@@ -128,6 +136,17 @@ func _ready() -> void:
 	load_bindings()
 	apply_to_input_map()
 	Settings.settings_changed.connect(on_settings_changed)
+
+
+func _input(event: InputEvent) -> void:
+	if not event is InputEventMouseButton:
+		return
+	var mouse_event := event as InputEventMouseButton
+	if not mouse_event.pressed or not PULSE_MOUSE_BUTTONS.has(mouse_event.button_index):
+		return
+	for action in get_actions():
+		if _action_has_mouse_button_binding(action, mouse_event.button_index):
+			mouse_button_pulse_frames[action] = Engine.get_physics_frames() + MOUSE_BUTTON_PULSE_FRAMES
 
 
 func get_actions(controller_id := "") -> Array[String]:
@@ -159,6 +178,11 @@ func get_action_label(action: String, controller_id := "") -> String:
 func get_bindings(action: String, controller_id := "") -> Array:
 	var bindings := bindings_by_controller.get(_resolve_controller(controller_id), {}) as Dictionary
 	return (bindings.get(action, [-1, -1]) as Array).duplicate(true)
+
+
+func is_action_just_pressed(action: StringName) -> bool:
+	_prune_mouse_button_pulses()
+	return Input.is_action_just_pressed(action) or mouse_button_pulse_frames.has(str(action))
 
 
 func get_bindings_payload(controller_id := "") -> Dictionary:
@@ -291,6 +315,24 @@ func _binding_to_input_event(binding: Variant) -> InputEvent:
 		mouse_event.button_index = int((binding as Dictionary).get("button_index", -1)) as MouseButton
 		return mouse_event
 	return null
+
+
+func _action_has_mouse_button_binding(action: String, button_index: MouseButton) -> bool:
+	for binding in get_bindings(action):
+		if (
+			binding is Dictionary
+			and str((binding as Dictionary).get("type", "")) == "mouse"
+			and int((binding as Dictionary).get("button_index", -1)) == int(button_index)
+		):
+			return true
+	return false
+
+
+func _prune_mouse_button_pulses() -> void:
+	var current_frame := Engine.get_physics_frames()
+	for action in mouse_button_pulse_frames.keys():
+		if int(mouse_button_pulse_frames[action]) < current_frame:
+			mouse_button_pulse_frames.erase(action)
 
 
 func _parse_saved_slots(saved: Variant) -> Array:

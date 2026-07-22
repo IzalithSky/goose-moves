@@ -199,6 +199,7 @@ var crouch_slide_enabled := false
 var ramp_launch_enabled := false
 var wall_jump_enabled := false
 var third_person_enabled := false
+var control_enabled := true
 var character_size := Vector3(
 	30.0 * Q3_METERS_PER_UNIT,
 	Q3_STANDING_HULL_HEIGHT * Q3_METERS_PER_UNIT,
@@ -375,6 +376,8 @@ func physics_tick(delta: float) -> void:
 
 
 func _get_movement_input() -> Vector2:
+	if not control_enabled:
+		return Vector2.ZERO
 	return Vector2(
 		Input.get_action_strength("player_right") - Input.get_action_strength("player_left"),
 		Input.get_action_strength("player_forward") - Input.get_action_strength("player_back"),
@@ -408,14 +411,20 @@ func _get_wish_speed(movement_input: Vector2) -> float:
 
 
 func _get_movement_scale() -> float:
+	if not control_enabled:
+		return 1.0
 	return walk_speed_scale if Input.is_action_pressed("player_walk") else 1.0
 
 
 func _get_vertical_input() -> float:
+	if not control_enabled:
+		return 0.0
 	return (Input.get_action_strength("player_jump") - Input.get_action_strength("player_crouch"))
 
 
 func _jump_requested() -> bool:
+	if not control_enabled:
+		return false
 	if auto_jump:
 		return Input.is_action_pressed("player_jump")
 	return Input.is_action_just_pressed("player_jump")
@@ -443,7 +452,8 @@ func _apply_jump_velocity(ground_normal: Vector3) -> void:
 
 func _try_wall_jump(grounded: bool) -> bool:
 	if (
-		not wall_jump_enabled
+		not control_enabled
+		or not wall_jump_enabled
 		or grounded
 		or water_level > 1
 		or wall_jump_cooldown_remaining > 0.0
@@ -564,6 +574,10 @@ func _update_crouch_slide(delta: float, grounded: bool) -> void:
 
 
 func _update_crouch_state() -> void:
+	if not control_enabled:
+		if is_crouching and _can_stand():
+			_set_crouching(false)
+		return
 	if Input.is_action_pressed("player_crouch"):
 		if not is_crouching:
 			_set_crouching(true)
@@ -658,7 +672,7 @@ func _water_move(movement_input: Vector2, delta: float) -> void:
 
 
 func _try_water_jump() -> bool:
-	if water_level != 2:
+	if not control_enabled or water_level != 2:
 		return false
 
 	var flat_forward := -global_transform.basis.z
@@ -961,6 +975,8 @@ func _surface_is_slick(collider: Node) -> bool:
 
 
 func handle_unhandled_input(event: InputEvent) -> void:
+	if not control_enabled:
+		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		yaw -= event.relative.x * mouse_sensitivity
 		pitch = clampf(pitch - (event.relative.y * mouse_sensitivity), deg_to_rad(-89.0), deg_to_rad(89.0))

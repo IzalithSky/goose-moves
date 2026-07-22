@@ -345,6 +345,21 @@ func _settings_presets() -> void:
 	check("built-in default preset includes Special / Wall Jump binding",
 		(default_payload.get("keybindings", {}) as Dictionary).has("player_special"))
 
+	Settings.set_character_controller(Settings.CHARACTER_Q3_N_FLIGHT)
+	var hybrid_default_entry := _find_preset(Settings.SOURCE_BUILTIN, Settings.DEFAULT_PRESET_ID)
+	check("built-in Q3 + Flight default settings preset is listed", not hybrid_default_entry.is_empty())
+	var hybrid_default_payload := Settings.load_preset(Settings.SOURCE_BUILTIN, Settings.DEFAULT_PRESET_ID)
+	check("built-in Q3 + Flight default settings preset loads", not hybrid_default_payload.is_empty())
+	check("built-in Q3 + Flight default preset matches setting schema defaults",
+		_preset_matches_defaults(hybrid_default_payload))
+	var hybrid_menu := SETTINGS_MENU_SCENE.instantiate()
+	add_child(hybrid_menu)
+	hybrid_menu.sync_from_settings()
+	check("built-in Q3 + Flight default preset appears in settings dropdown",
+		_find_preset_option(hybrid_menu, Settings.SOURCE_BUILTIN, Settings.DEFAULT_PRESET_ID) >= 0)
+	hybrid_menu.queue_free()
+	Settings.set_character_controller(Settings.CHARACTER_Q3)
+
 	Settings.set_controller_setting("move_speed", 13.0, Settings.CHARACTER_Q3)
 	KeybindingsSettings.set_binding("player_jump", 0, KEY_J)
 	check("default preset applies", Settings.apply_preset_entry(Settings.SOURCE_BUILTIN, Settings.DEFAULT_PRESET_ID))

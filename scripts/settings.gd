@@ -117,6 +117,10 @@ const FLIGHT_SETTING_DEFS: Array[Dictionary] = [
 var Q3_N_FLIGHT_SETTING_DEFS := [
 	{"key": "flight_hold_threshold", "label": "Hold jump for flight", "default": Q3_N_FLIGHT_CC.DEFAULT_FLIGHT_HOLD_THRESHOLD, "min": 0.0, "max": 2.0, "step": 0.05, "format": "%.2f", "suffix": " s"},
 	{"key": "flight_no_contact_threshold", "label": "Airborne time for flight", "default": Q3_N_FLIGHT_CC.DEFAULT_FLIGHT_NO_CONTACT_THRESHOLD, "min": 0.0, "max": 2.0, "step": 0.05, "format": "%.2f", "suffix": " s"},
+	{"key": "body_bounce", "label": "Body bounce knockdown", "default": Q3_N_FLIGHT_CC.DEFAULT_BODY_BOUNCE_ENABLED, "min": 0.0, "max": 1.0, "step": 1.0, "control": "toggle"},
+	{"key": "body_bounce_min_normal_speed", "label": "Bounce impact speed", "default": Q3_N_FLIGHT_CC.DEFAULT_BODY_BOUNCE_MIN_NORMAL_SPEED, "min": 0.0, "max": 80.0, "step": 0.1, "format": "%.1f", "suffix": " m/s"},
+	{"key": "body_bounce_knockdown_duration", "label": "Bounce knockdown time", "default": Q3_N_FLIGHT_CC.DEFAULT_BODY_BOUNCE_KNOCKDOWN_DURATION, "min": 0.0, "max": 5.0, "step": 0.05, "format": "%.2f", "suffix": " s"},
+	{"key": "body_bounce_restitution", "label": "Bounce restitution", "default": Q3_N_FLIGHT_CC.DEFAULT_BODY_BOUNCE_RESTITUTION, "min": 0.0, "max": 1.5, "step": 0.05, "format": "%.2f"},
 ] + Q3_SETTING_DEFS + [
 	{"key": "camera_distance", "label": "Flight camera distance", "default": FLIGHT_CC.DEFAULT_CAMERA_DISTANCE, "min": 1.0, "max": 15.0, "step": 0.1, "format": "%.1f", "suffix": " m"},
 	{"key": "first_person", "label": "Flight first-person camera", "default": FLIGHT_CC.DEFAULT_FIRST_PERSON_ENABLED, "min": 0.0, "max": 1.0, "step": 1.0, "control": "toggle"},

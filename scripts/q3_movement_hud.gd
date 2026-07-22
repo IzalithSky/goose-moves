@@ -12,6 +12,8 @@ extends CanvasLayer
 @onready var water_sign_label: Label = $BottomBar/FlagGrid/WaterSignLabel
 @onready var water_name_label: Label = $BottomBar/FlagGrid/WaterNameLabel
 @onready var water_jump_sign_label: Label = $BottomBar/FlagGrid/WaterJumpSignLabel
+@onready var knockdown_sign_label: Label = $BottomBar/FlagGrid/KnockdownSignLabel
+@onready var knockdown_name_label: Label = $BottomBar/FlagGrid/KnockdownNameLabel
 
 
 func update_values(
@@ -37,3 +39,8 @@ func update_values(
 	water_sign_label.text = "+" if water_level > 0 else "-"
 	water_name_label.text = "WATER:%d" % water_level if water_level > 0 else "WATER"
 	water_jump_sign_label.text = "+" if water_jumping else "-"
+
+
+func set_knockdown_time(time_remaining: float) -> void:
+	knockdown_sign_label.text = "+" if time_remaining > 0.0 else "-"
+	knockdown_name_label.text = "KNOCKDOWN %.2fs" % time_remaining if time_remaining > 0.0 else "KNOCKDOWN"

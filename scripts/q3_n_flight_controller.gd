@@ -3,6 +3,10 @@ extends CharacterBody3D
 
 const DEFAULT_FLIGHT_HOLD_THRESHOLD := 0.3
 const DEFAULT_FLIGHT_NO_CONTACT_THRESHOLD := 0.3
+const DEFAULT_BODY_BOUNCE_ENABLED := 1.0
+const DEFAULT_BODY_BOUNCE_MIN_NORMAL_SPEED := 14.0
+const DEFAULT_BODY_BOUNCE_KNOCKDOWN_DURATION := 1.2
+const DEFAULT_BODY_BOUNCE_RESTITUTION := 0.75
 const CAMERA_TRANSITION_DURATION := 0.2
 const FLIGHT_COLLISION_SIZE := Vector3(1.2, 1.2, 1.2)
 const Q3_MOVEMENT_MOTOR := preload("res://scripts/q3_movement_motor.gd")
@@ -35,6 +39,11 @@ var flight_motor := FLIGHT_MOVEMENT_MOTOR.new()
 var mode := Mode.Q3
 var flight_hold_threshold := DEFAULT_FLIGHT_HOLD_THRESHOLD
 var flight_no_contact_threshold := DEFAULT_FLIGHT_NO_CONTACT_THRESHOLD
+var body_bounce_enabled := DEFAULT_BODY_BOUNCE_ENABLED >= 0.5
+var body_bounce_min_normal_speed := DEFAULT_BODY_BOUNCE_MIN_NORMAL_SPEED
+var body_bounce_knockdown_duration := DEFAULT_BODY_BOUNCE_KNOCKDOWN_DURATION
+var body_bounce_restitution := DEFAULT_BODY_BOUNCE_RESTITUTION
+var knockdown_time_remaining := 0.0
 var flap_hold_time := 0.0
 var no_surface_contact_time := 0.0
 var camera_transition_active := false
@@ -75,18 +84,36 @@ func _process(delta: float) -> void:
 		flight_motor.process_tick(delta)
 	else:
 		q3_motor.process_tick(delta)
+	_update_knockdown_hud()
 	_update_camera_transition(delta)
 
 
 func _physics_process(delta: float) -> void:
+	_update_knockdown_timer(delta)
 	if mode == Mode.FLIGHT:
+		var flight_impact_velocity := velocity
 		flight_motor.physics_tick(delta)
-		if get_slide_collision_count() > 0:
+		var flight_bounce_impact := _get_body_bounce_impact(flight_impact_velocity)
+		if not flight_bounce_impact.is_empty():
+			var bounced_velocity := _get_body_bounce_velocity(
+				flight_impact_velocity,
+				flight_bounce_impact["normal"] as Vector3,
+			)
+			_enter_q3(true)
+			velocity = bounced_velocity
+			_start_knockdown()
+		elif get_slide_collision_count() > 0:
 			_enter_q3(true)
 		return
 
+	q3_motor.control_enabled = not _is_knocked_down()
 	_update_flap_hold(delta)
+	var q3_impact_velocity := velocity
 	q3_motor.physics_tick(delta)
+	var q3_bounce_impact := _get_body_bounce_impact(q3_impact_velocity)
+	if not q3_bounce_impact.is_empty():
+		velocity = _get_body_bounce_velocity(q3_impact_velocity, q3_bounce_impact["normal"] as Vector3)
+		_start_knockdown()
 	_update_no_surface_contact_time(delta)
 	if _can_activate_flight():
 		_enter_flight()
@@ -139,9 +166,28 @@ func _apply_controller_settings() -> void:
 		"flight_no_contact_threshold",
 		Settings.CHARACTER_Q3_N_FLIGHT,
 	)
+	body_bounce_enabled = Settings.get_controller_setting(
+		"body_bounce",
+		Settings.CHARACTER_Q3_N_FLIGHT,
+	) >= 0.5
+	body_bounce_min_normal_speed = Settings.get_controller_setting(
+		"body_bounce_min_normal_speed",
+		Settings.CHARACTER_Q3_N_FLIGHT,
+	)
+	body_bounce_knockdown_duration = Settings.get_controller_setting(
+		"body_bounce_knockdown_duration",
+		Settings.CHARACTER_Q3_N_FLIGHT,
+	)
+	body_bounce_restitution = Settings.get_controller_setting(
+		"body_bounce_restitution",
+		Settings.CHARACTER_Q3_N_FLIGHT,
+	)
 
 
 func _update_flap_hold(delta: float) -> void:
+	if _is_knocked_down():
+		flap_hold_time = 0.0
+		return
 	if Input.is_action_pressed("player_jump"):
 		flap_hold_time += delta
 	else:
@@ -157,13 +203,64 @@ func _update_no_surface_contact_time(delta: float) -> void:
 
 func _can_activate_flight() -> bool:
 	return (
-		flap_hold_time >= flight_hold_threshold
+		not _is_knocked_down()
+		and flap_hold_time >= flight_hold_threshold
 		and no_surface_contact_time >= flight_no_contact_threshold
 	)
 
 
 func _is_touching_surface() -> bool:
 	return is_on_floor() or is_on_wall() or is_on_ceiling() or get_slide_collision_count() > 0
+
+
+func _is_knocked_down() -> bool:
+	return knockdown_time_remaining > 0.0
+
+
+func _update_knockdown_timer(delta: float) -> void:
+	if knockdown_time_remaining <= 0.0:
+		return
+	knockdown_time_remaining = maxf(knockdown_time_remaining - delta, 0.0)
+	if knockdown_time_remaining <= 0.0:
+		q3_motor.control_enabled = true
+
+
+func _get_body_bounce_impact(impact_velocity: Vector3) -> Dictionary:
+	if not body_bounce_enabled:
+		return {}
+	var strongest_speed := body_bounce_min_normal_speed
+	var strongest_normal := Vector3.ZERO
+	for collision_index in get_slide_collision_count():
+		var normal := get_slide_collision(collision_index).get_normal().normalized()
+		var normal_speed := maxf(0.0, -impact_velocity.dot(normal))
+		if normal_speed > strongest_speed:
+			strongest_speed = normal_speed
+			strongest_normal = normal
+	if strongest_normal == Vector3.ZERO:
+		return {}
+	return {
+		"normal": strongest_normal,
+		"speed": strongest_speed,
+	}
+
+
+func _get_body_bounce_velocity(impact_velocity: Vector3, normal: Vector3) -> Vector3:
+	var normalized_normal := normal.normalized()
+	var reflected := impact_velocity - (2.0 * impact_velocity.dot(normalized_normal) * normalized_normal)
+	return reflected * body_bounce_restitution
+
+
+func _start_knockdown() -> void:
+	knockdown_time_remaining = maxf(body_bounce_knockdown_duration, 0.0)
+	q3_motor.control_enabled = not _is_knocked_down()
+	flap_hold_time = 0.0
+	no_surface_contact_time = 0.0
+	_update_knockdown_hud()
+
+
+func _update_knockdown_hud() -> void:
+	if q3_hud != null:
+		q3_hud.set_knockdown_time(knockdown_time_remaining)
 
 
 func _enter_flight() -> void:
@@ -258,6 +355,7 @@ func _enter_q3(snap_upright: bool) -> void:
 	velocity = preserved_velocity
 	mode = Mode.Q3
 	motion_mode = CharacterBody3D.MOTION_MODE_GROUNDED
+	q3_motor.control_enabled = not _is_knocked_down()
 	floor_stop_on_slope = false
 	floor_max_angle = deg_to_rad(q3_motor.max_slope_angle)
 	floor_snap_length = q3_motor.step_height
@@ -274,6 +372,7 @@ func _set_q3_visuals() -> void:
 	flight_hud.visible = false
 	_get_q3_view_camera().current = true
 	character_collider_visual.visible = q3_motor.third_person_enabled
+	_update_knockdown_hud()
 
 
 func _set_flight_visuals() -> void:

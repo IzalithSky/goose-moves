@@ -58,7 +58,14 @@ func _direct_transitions() -> void:
 	check("hybrid settings hide Q3 size X", not _has_hybrid_setting("character_size_x"))
 	check("hybrid settings expose no-contact flight gate", _has_hybrid_setting("flight_no_contact_threshold"))
 	check("hybrid settings expose flight first-person camera", _has_hybrid_setting("first_person"))
+	check("hybrid settings expose body bounce toggle", _has_hybrid_setting("body_bounce"))
+	check("hybrid settings expose body bounce impact speed", _has_hybrid_setting("body_bounce_min_normal_speed"))
+	check("hybrid settings expose body bounce knockdown time", _has_hybrid_setting("body_bounce_knockdown_duration"))
+	check("hybrid settings expose body bounce restitution", _has_hybrid_setting("body_bounce_restitution"))
 	check_approx("hybrid FOV defaults to 80", _hybrid_setting_default("fov"), 80.0, 0.001)
+	check_approx("hybrid body bounce defaults enabled", _hybrid_setting_default("body_bounce"), 1.0, 0.001)
+	check_approx("hybrid body bounce impact defaults to 14 m/s", _hybrid_setting_default("body_bounce_min_normal_speed"), 14.0, 0.001)
+	check_approx("hybrid body bounce knockdown defaults to 1.2s", _hybrid_setting_default("body_bounce_knockdown_duration"), 1.2, 0.001)
 	check_approx(
 		"hybrid Q3 movement defaults CPM-like",
 		_hybrid_setting_default("movement_mode"),
@@ -87,6 +94,13 @@ func _direct_transitions() -> void:
 	check_vec3("hybrid Q3 hull matches flight collision size", c.q3_motor.body_shape.size, c.FLIGHT_COLLISION_SIZE, 0.001)
 	check_vec3("hybrid Q3 character size matches flight collision size", c.q3_motor.character_size, c.FLIGHT_COLLISION_SIZE, 0.001)
 	check_approx("hybrid Q3 hull stays feet anchored", c.collision_shape.position.y, c.FLIGHT_COLLISION_SIZE.y * 0.5, 0.001)
+	c.body_bounce_restitution = 0.5
+	check_vec3(
+		"hybrid body bounce reflects by surface normal",
+		c._get_body_bounce_velocity(Vector3(2, 0, -12), Vector3(0, 0, 1)),
+		Vector3(1, 0, 6),
+		0.001,
+	)
 
 	c.velocity = Vector3(3, 4, -5)
 	c.global_basis = (
@@ -245,4 +259,33 @@ func _flight_contact_returns_q3() -> void:
 	check_approx("contact return snaps roll upright", c.rotation.z, 0.0, 0.001)
 	check("contact return keeps tangential momentum", absf(c.velocity.x) > 0.5)
 	Input.action_release("player_jump")
+	c.body_bounce_enabled = true
+	c.body_bounce_min_normal_speed = 5.0
+	c.body_bounce_knockdown_duration = 0.25
+	c.body_bounce_restitution = 0.5
+	c.knockdown_time_remaining = 0.0
+	c.q3_motor.control_enabled = true
+	c.global_position = Vector3(0, 3, 0)
+	c.velocity = Vector3(2, 0, -12)
+	c.global_basis = Basis.IDENTITY
+	c._enter_flight()
+	_goto("flight_contact_bounces")
+
+
+func _flight_contact_bounces() -> void:
+	if phase_frame < 20 and c.mode == c.Mode.FLIGHT:
+		return
+	check("flight body bounce returns to Q3", c.mode == c.Mode.Q3)
+	check("flight body bounce starts knockdown", c.knockdown_time_remaining > 0.0)
+	check("flight body bounce disables Q3 control", not c.q3_motor.control_enabled)
+	check("flight body bounce reflects away from wall", c.velocity.z > 0.0)
+	check("flight body bounce keeps tangential velocity", c.velocity.x > 0.0)
+	check("knockdown HUD shows active state", c.q3_hud.knockdown_sign_label.text == "+")
+	Input.action_press("player_forward")
+	check("knockdown suppresses Q3 movement input", c.q3_motor._get_movement_input().is_zero_approx())
+	Input.action_release("player_forward")
+	c._update_knockdown_timer(c.body_bounce_knockdown_duration)
+	c._update_knockdown_hud()
+	check("knockdown restores Q3 control", c.q3_motor.control_enabled)
+	check("knockdown HUD clears active state", c.q3_hud.knockdown_sign_label.text == "-")
 	finish()
